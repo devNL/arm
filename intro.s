@@ -68,21 +68,29 @@ bx lr
 clamp:
 bx lr
 
-# args: x,a
+# args: x (s0), a (s1)
 # return (x<a)?x:a;
 min:
-	# if (r0 < r1) return r0
-	cmp r0, r1
+	# if (x < a) return x;
+	vcmp.f32 s0, s1
 	blt end_min
-	# else return r1
-	mov r0, r1 
+
+	# else return a;
+	vmov s0, s1
 end_min:
 	bx lr
 
-# args: x,a
+# args: x (s0), a (s1)
 # return (x>a)?x:a;
 max:
-bx lr
+	# if (x > a) return x;
+	vcmp.f32 s0, s1
+	bgt end_max
+
+	# else return a;
+	vmov s0, s1
+end_max:
+	bx lr
 
 # args: x,y
 # return sqrtf(x*x+y*y);
