@@ -66,9 +66,9 @@ bx lr
 # args x (s0), a (s1) , b (s2)
 # return (x<a)?a:(x>b)?b:x;
 clamp:
-	call max
+	bl max
 	vmov s2, s1
-	call min
+	bl min
 	bx lr
 
 # args: x (s0), a (s1)
@@ -169,10 +169,14 @@ bx lr
 # args: px, px, pz, tx, ty
 sdtorus:
 	bl length2
-	vmov s5, s0 #tmp=bla
-	vsub.f32 s5, s3 #tmp-=tx
-	vmov s0, s5 #arg0=bla-tx
-	vmov s1, s2 #arg1=pz
+	vmov s5, s0
+	#tmp=bla
+	vsub.f32 s5, s3
+	# tmp-=tx
+	vmov s0, s5
+	# arg0=bla-tx
+	vmov s1, s2
+	# arg1=pz
 	bl length2
 	vsub.f32 s0, s4
 bx lr
