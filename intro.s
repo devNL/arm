@@ -63,10 +63,24 @@ main_thumb:
 init_view_port:
 bx lr
 
-# args x,a,b
+# args x (s0), a (s1) , b (s2)
 # return (x<a)?a:(x>b)?b:x;
 clamp:
-bx lr
+	# if (x<a) return a;
+	vcmp.f32 s0, s1
+	bgt clamp2
+
+	vmov s0, s1
+	bx lr
+
+clamp2:
+	# if (x>b)
+	vcmp.f32 s0, s2
+	blt clamp3
+	vmov s0, s2
+
+clamp3:
+	bx lr
 
 # args: x (s0), a (s1)
 # return (x<a)?x:a;
