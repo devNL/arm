@@ -66,20 +66,9 @@ bx lr
 # args x (s0), a (s1) , b (s2)
 # return (x<a)?a:(x>b)?b:x;
 clamp:
-	# if (x<a) return a;
-	vcmp.f32 s0, s1
-	bgt clamp2
-
-	vmov s0, s1
-	bx lr
-
-clamp2:
-	# if (x>b)
-	vcmp.f32 s0, s2
-	blt clamp3
-	vmov s0, s2
-
-clamp3:
+	call max
+	vmov s2, s1
+	call min
 	bx lr
 
 # args: x (s0), a (s1)
@@ -128,22 +117,89 @@ bx lr
 
 # 
 normalize:
+
+bx lr
+
+# args: posx, posy, posz, r
+# return length(posx,posy,posz) - r;
+spheredist:
+	bl length3
+	vsub.f32 s0, s3
 bx lr
 
 mix:
 bx lr
 
+# args: s0=px, s1=py, s2=pz, s3=bx, s4=by, s5=bz, s6=r
 udroundbox:
+	# preserve some args
+	vmov s8, s1
+	vmov s9, s2
+
+	# arg1 to max is always 0
+	vsub.f32 s1, s1
+	
+	# px = max(abs(px)-bx, 0.0)
+	vabs.f32 s0, s0	
+	vsub.f32 s0, s3
+	bl max
+	vmov s7, s0
+
+	# py = max(abs(py)-by, 0.0)
+	vabs.f32 s0, s8
+	vsub.f32 s0, s4
+	bl max
+	vmov s8, s0
+
+	# pz = max(abs(pz)-bz, 0.0)
+	vabs.f32 s0, s9
+	vsub.f32 s0, s5
+	bl max
+	
+	# t = length3(px, py, pz)
+	vmov s2, s0 
+	vmov s0, s7
+	vmov s1, s8
+	bl length3
+
+	# return t-r
+	vsub.f32 s0, s6
 bx lr
 
+# args: px, px, pz, tx, ty
 sdtorus:
+	bl length2
+	vmov s5, s0 #tmp=bla
+	vsub.f32 s5, s3 #tmp-=tx
+	vmov s0, s5 #arg0=bla-tx
+	vmov s1, s2 #arg1=pz
+	bl length2
+	vsub.f32 s0, s4
 bx lr
 
+# args: px, py, pz
 dist:
+
 bx lr
 
+# args: x1,x2,y1,y2,z1,z2
+# return x1*x2 + y1*y2 + z1*z2
 dot:
+	vmul.f32 s0, s1
+	vmul.f32 s2, s3
+	vmul.f32 s4, s5
+
+	vadd.f32 s0, s2
+	vadd.f32 s0, s4
 bx lr
 
 normal_at_point:
+
 bx lr
+
+
+torus:
+	.float 4.0, 0.0, 9.0
+
+box:
+	.float -3.0, 0.0, 10.0
