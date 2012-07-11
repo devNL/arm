@@ -1,4 +1,4 @@
-.thumb
+.arm
 .arch armv7-a
 .fpu neon
 .syntax unified
@@ -6,6 +6,10 @@
 
 # previously known as intro_do, main loop
 main:
+	blx main_thumb
+
+main_thumb:
+.thumb
 	# init GFX
 	mov r1, $0
 	movt r1, $0x1002
