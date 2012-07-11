@@ -92,14 +92,24 @@ max:
 end_max:
 	bx lr
 
-# args: x,y
+# args: x (s0), y (s1)
 # return sqrtf(x*x+y*y);
 length2:
+	vmul.f32 s0, s0
+	vmul.f32 s1, s1
+	vadd.f32 s0, s1
+	vsqrt.f32 s0, s0
 bx lr
 
-# args: x,y,z
+# args: x (s0), y (s1), z (s2)
 # return sqrtf(x*x+y*y+z*z);
 length3:
+	vmul.f32 s0, s0
+	vmul.f32 s1, s1
+	vmul.f32 s2, s2
+	vadd.f32 s0, s1
+	vadd.f32 s0, s2
+	vsqrt.f32 s0, s0
 bx lr
 
 # 
