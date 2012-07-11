@@ -183,7 +183,59 @@ bx lr
 
 # args: px, py, pz
 dist:
+	# preserve args
+	vmov s10, s0
+	vmov s11, s1
+	vmov s12, s2
 
+	# res1 = sdtorus(px-torus[0], py-torus[1], pz-torus[2], 3.0, 1.0)
+	ldr r0, =torus
+	vldr.f32 s3, [r0]
+	vldr.f32 s4, [r0,#4]
+	vldr.f32 s5, [r0,#8]
+
+	# px -= torus[0]
+	vsub.f32 s0, s3
+	# py -= torus[1]
+	vsub.f32 s1, s4
+	# pz -= torus[2]
+	vsub.f32 s2, s5
+
+	vldr.f32 s3, [r0,#12]
+	vldr.f32 s4, [r0,#16]
+	bl sdtorus
+
+	# preserve result
+	vmov s13, s0
+
+	# res2 = udroundbox(px-box[0], py-box[1], pz-box[2], 0.75, 3.0, 0.5, 1.0)
+	vmov s0, s10
+	vmov s1, s11
+	vmov s2, s12
+
+	ldr r1, =box
+	vldr.f32 s3, [r0]
+	vldr.f32 s4, [r0,#4]
+	vldr.f32 s5, [r0,#8]
+
+	# px -= box[0]
+	vsub.f32 s0, s3
+	# py -= box[1]
+	vsub.f32 s1, s4
+	# pz -= box[2]
+	vsub.f32 s2, s5
+
+	vldr.f32 s3, [r0,#12]
+	vldr.f32 s4, [r0,#16]
+	vldr.f32 s5, [r0,#20]
+	vldr.f32 s6, [r0,#24]
+
+	bl udroundbox
+
+	# return min(res1, res2)
+	vmov s1, s0
+	vmov s0, s13
+	bl min
 bx lr
 
 # args: x1,x2,y1,y2,z1,z2
@@ -202,8 +254,10 @@ normal_at_point:
 bx lr
 
 
+# last 2 are torus() args
 torus:
-	.float 4.0, 0.0, 9.0
+	.float 4.0, 0.0, 9.0, 3.0, 1.0
 
 box:
-	.float -3.0, 0.0, 10.0
+	.float -3.0, 0.0, 10.0, 0.75, 3.0, 0.5, 1.0
+
