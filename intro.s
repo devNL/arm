@@ -254,10 +254,119 @@ normal_at_point:
 bx lr
 
 
+main_loop:
+
+	LDR r0,=floats
+	VLDR.32 s31,[r0] 	@ dir.x
+	VLDR.32 s30,[r0] 	@ dir.y
+	VLDR.32 s29,[r0]	@ dir.z
+
+	MOV r12, $0		@ i
+	MOV r11, $0		@ j
+
+	VLDR.32 s28,[r0]	@ step
+
+				@ s27 = ray.x, s26 = ray.y, s25 = ray.z
+
+	VLDR.32 s24,[r0]	@ color.r
+	VLDR.32 s23,[r0]	@ color.g
+	VLDR.32 s22,[r0]	@ color.b
+
+				@ s21 = specular
+
+	MOV r11, $0		@ colorArray.r
+	MOV r10, $0		@ colorArray.g
+	MOV r9, $0		@ colorArray.b
+
+	@ s20 = d
+	LDR r1, =viewport
+	VLDR.32 s19,[r1]	@ dx
+	VLDR.32 s18,[r1,#4]	@ dy
+
+
+	
+
+outerloop:
+
+innerloop:
+
+	@ dir[0] = (j*dx) - 1.0;
+	VMOV.F32	r11,s0			@ transfer j to fp register
+	VCVT.F32.U32	s0,s0			@ convert j to floating point
+	VMOV.F32	s31,#-1.0		@ s31 = -1.0
+	VMLA.F32	s31,s0,s19		@ s31 = j*dx - 1.0
+	
+        @ dir[1] = (i*dy) - 1.0
+	VMOV.F32	r12,s0			@ transfer i to fp register
+	VCVT.F32.U32	s0,s0			@ convert i to floating point
+	VMOV.F32	s30, #-1.0		@ s30 = -1.0
+	VMLA.F32	s30,s0,s18		@ s30 = i*dy - 1.0
+
+	@ dir[2] = -eye[2];
+	VMOV.F32	s29, #-1.0		@ s29 = -1.0
+
+	@ ray.xyz = eye.xyz
+	VSUB.F32	s27, s27		@ ray[0] = 0.0
+	VSUB.F32	s26, s26		@ ray[1] = 0.0
+	VMOV.F32	s25, #-1.0		@ ray[2] = -1.0
+
+	@ step = 0.0
+	VSUB.F32	s28,s28			@ step = 0.0
+	
+raymarch:
+	@ d = (dist(ray[0], ray[1], ray[2]));
+	VMOV.F32	s0,s27			@ s0 = ray[0]
+	VMOV.F32	s1,s26			@ s1 = ray[1]
+	VMOV.F32	s2,s25			@ s2 = ray[2]
+
+	BL dist					@ call dist()
+	VMOV.F32	s20,s0			@ d = result
+
+	@ ray hit
+	VCMP.F32	s20,#0			@ d > 0 ?
+	BGT		nohit			@ skip hit code
+
+hit:
+	@ NormalAtPoint(ray[0], ray[1], ray[2], d, &N[0]);
+        VMOV.F32        s0,s27                  @ s0 = ray[0]
+        VMOV.F32        s1,s26                  @ s1 = ray[1]
+        VMOV.F32        s2,s25                  @ s2 = ray[2]
+	VMOV.F32	s3,s20			@ s3 = d
+
+
+nohit:
+	@ step += d
+	VADD.F32	s28,s20			@ step += d
+
+	@ colorArray.rgb = 0
+        MOV r11, $0             @ colorArray.r
+        MOV r10, $0             @ colorArray.g
+        MOV r9, $0              @ colorArray.b
+
+	@ ray = step * dir
+	VMUL.F32	s27,s31,s28		@ ray[0] = step * dir[0]
+	VMUL.F32	s26,s30,s28		@ ray[1] = step * dir[1]
+	VMUL.F32	s25,s29,s28		@ ray[2] = step * dir[2]
+
+	
+
+	
+
+
+
 # last 2 are torus() args
 torus:
 	.float 4.0, 0.0, 9.0, 3.0, 1.0
 
 box:
 	.float -3.0, 0.0, 10.0, 0.75, 3.0, 0.5, 1.0
+
+floats:
+ 	.float 0.0, 1.0
+
+viewport:
+	.float 0.002350, 0.004167 	@ dx dy
+
+diffuse:
+	.float 0.4, 0.7, 1.0
 
