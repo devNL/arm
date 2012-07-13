@@ -283,7 +283,9 @@ main_loop:
 	VLDR.32 s19,[r1]	@ dx
 	VLDR.32 s18,[r1,#4]	@ dy
 
-
+	@ s17, s16, s15 = N
+	@ s14, s13, s12 = L
+	@ s11, s10, s9  = H
 	
 
 outerloop:
@@ -332,7 +334,28 @@ hit:
         VMOV.F32        s1,s26                  @ s1 = ray[1]
         VMOV.F32        s2,s25                  @ s2 = ray[2]
 	VMOV.F32	s3,s20			@ s3 = d
+	@BL		normalAtPoint
+	
+	@ L[0] = -ray[0]; L[1] = -ray[1]; L[2] = -ray[2] - 10.0
+	VMOV.F32	s14,#-1.0		@ L.x = -1.0
+	VMOV.F32	s12,#-10.0		@ L.z = -10.0
+	VMUL.F32	s13,s26,s14		@ L.y = ray[1] * -1.0
+	VMLA.F32	s12,s25,s14		@ L.z = -10.0 + (ray[2] * -1.0)
+	VMUL.F32	s14,s27,s14		@ L.x = -1.0 * ray[0]
 
+	@ Normalize L
+	
+
+	@ H = L - ray
+	VSUB.F32	s11,s14,s27
+	VSUB.F32	s10,s13,s26
+	VSUB.F32	s9,s12,s25	
+
+	@ Normalize H
+
+
+	@ calculate diffuse term
+	
 
 nohit:
 	@ step += d
