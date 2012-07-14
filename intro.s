@@ -290,7 +290,12 @@ main_loop:
 
 outerloop:
 
+	@ increment i
+
 innerloop:
+	
+	@ increment j
+	
 
 	@ dir[0] = (j*dx) - 1.0;
 	VMOV.F32	r11,s0			@ transfer j to fp register
@@ -355,23 +360,42 @@ hit:
 
 
 	@ calculate diffuse term
+
+	@ color = colorDiffuse * diffuseTerm
 	
+	@ specular = dot(N,H)
+	@ specular = pow(specular, 50)
+
+	@ color += specular*(1.0 - color)
+	@ colorArray = color * 255
+
+	BL doneraymarch
 
 nohit:
 	@ step += d
 	VADD.F32	s28,s20			@ step += d
 
 	@ colorArray.rgb = 0
-        MOV r11, $0             @ colorArray.r
-        MOV r10, $0             @ colorArray.g
-        MOV r9, $0              @ colorArray.b
+        MOV r11, $0     		        @ colorArray.r
+        MOV r10, $0             		@ colorArray.g
+        MOV r9, $0              		@ colorArray.b
 
 	@ ray = step * dir
 	VMUL.F32	s27,s31,s28		@ ray[0] = step * dir[0]
 	VMUL.F32	s26,s30,s28		@ ray[1] = step * dir[1]
 	VMUL.F32	s25,s29,s28		@ ray[2] = step * dir[2]
 
+	@ loop again
+	BL 		raymarch
+
+doneraymarch:	
 	
+	@ plot pixel into buffer
+
+doneinnerloop:
+
+doneouterloop:
+
 
 	
 
