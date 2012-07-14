@@ -115,28 +115,22 @@ length3:
 	vsqrt.f32 s0, s0
 bx lr
 
-# args: r0=*x, r1=*y, r2=*z
+# args: s0,s1,s2
 normalize:
-	vldr.f32 s0, [r0]
-	vldr.f32 s1, [r0,#4]
-	vldr.f32 s2, [r0,#8]
-	bl length3	
+	vpush.f32 {s0,s1,s2}
+	bl length3
 
-	vmov.f32 s3, #1.0
-	vdiv.f32 s3, s0
+	vcvt.f64.f32 d16,s0
+	vrecpe.f32 d16, d16
+	vcvt.f32.f64 s3,d16
 	
-	vldr.f32 s0, [r0]
-	vldr.f32 s1, [r0,#4]
-	vldr.f32 s2, [r0,#8]
+	vpop.f32 {s0,s1,s2}
 
 	vmul.f32 s0, s3
 	vmul.f32 s1, s3
 	vmul.f32 s2, s3
 
-	vstr.f32, s0, [r0]
-	vstr.f32, s1, [r0,#4]
-	vstr.f32, s2, [r0,#8]
-bx lr
+	bx lr
 
 # args: posx, posy, posz, r
 # return length(posx,posy,posz) - r;
@@ -362,30 +356,63 @@ hit:
 	@ L[0] = -ray[0]; L[1] = -ray[1]; L[2] = -ray[2] - 10.0
 	VMOV.F32	s14,#-1.0		@ L.x = -1.0
 	VMOV.F32	s12,#-10.0		@ L.z = -10.0
-	VMUL.F32	s13,s26,s14		@ L.y = ray[1] * -1.0
-	VMLA.F32	s12,s25,s14		@ L.z = -10.0 + (ray[2] * -1.0)
-	VMUL.F32	s14,s27,s14		@ L.x = -1.0 * ray[0]
+
+	VMUL.F32	s1,s26,s14		@ L.y = ray[1] * -1.0
+	VMLA.F32	s2,s25,s14		@ L.z = -10.0 + (ray[2] * -1.0)
+	VMUL.F32	s0,s27,s14		@ L.x = -1.0 * ray[0]
 
 	@ Normalize L
+	BL normalize
 	
-
 	@ H = L - ray
-	VSUB.F32	s11,s14,s27
-	VSUB.F32	s10,s13,s26
-	VSUB.F32	s9,s12,s25	
+	@ VSUB.F32	s0,s27
+	@ VSUB.F32	s1,s26
+	@ VSUB.F32	s2,s25	
 
 	@ Normalize H
-
+	@ BL normalize
 
 	@ calculate diffuse term
+	VMOV.F32	s3,s17		@ s3 = N.x
+	VMOV.F32	s4,s16		@ s4 = N.y
+	VMOV.F32	s5,s15		@ s5 = N.z
+
+	BL 	dot
+
+	VSUB.F32	s1,s1		@ s1 = 0.0
+	VMOV.F32	s2,#1.0		@ s2 = 1.0
+
+	BL 	clamp
 
 	@ color = colorDiffuse * diffuseTerm
+
+	LDR r0,=diffuse
 	
+        VLDR.F32 s3,[r0]        @ diffuse.r
+        VLDR.F32 s4,[r0,#4]     @ diffuse.g
+        VLDR.F32 s5,[r0,#8]     @ diffuse.b
+
+	VMUL.F32 s3,s0	
+	VMUL.F32 s4,s0
+	VMUL.F32 s5,s0
+
 	@ specular = dot(N,H)
 	@ specular = pow(specular, 50)
 
 	@ color += specular*(1.0 - color)
 	@ colorArray = color * 255
+
+	VMUL.F32 s3,#255.0	
+	VMUL.F32 s4,#255.0
+	VMUL.F32 s5,#255.0
+		
+	VCVT.U32.F32 s3,s3
+	VCVT.U32.F32 s4,s4
+	VCVT.U32.F32 s5,s5
+
+	VMOV	r11,s3
+	VMOV	r10,s4
+	VMOV	r9,s5
 
 	BL doneraymarch
 
