@@ -261,7 +261,11 @@ dot:
 	vadd.f32 s0, s4
 bx lr
 
+# args: s0, s1, s2, s3
 normal_at_point:
+	@VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
+	@VMOV.F32	
+	
 
 bx lr
 
@@ -286,9 +290,9 @@ main_loop:
 
 				@ s21 = specular
 
-	MOV r11, $0		@ colorArray.r
-	MOV r10, $0		@ colorArray.g
-	MOV r9, $0		@ colorArray.b
+	MOV r10, $0		@ colorArray.r
+	MOV r9, $0		@ colorArray.g
+	MOV r8, $0		@ colorArray.b
 
 	@ s20 = d
 	LDR r1, =viewport
@@ -303,11 +307,12 @@ main_loop:
 outerloop:
 
 	@ increment i
+	ADD	r12,#1
+	
+	@ j = 0
+	MOV	r11,$0
 
 innerloop:
-	
-	@ increment j
-	
 
 	@ dir[0] = (j*dx) - 1.0;
 	VMOV.F32	r11,s0			@ transfer j to fp register
@@ -402,17 +407,20 @@ hit:
 	@ color += specular*(1.0 - color)
 	@ colorArray = color * 255
 
-	VMUL.F32 s3,#255.0	
-	VMUL.F32 s4,#255.0
-	VMUL.F32 s5,#255.0
+	VMOV.F32 s0,#16.0
+	VMUL.F32 s0,s0
+
+	VMUL.F32 s3,s0	
+	VMUL.F32 s4,s0
+	VMUL.F32 s5,s0
 		
 	VCVT.U32.F32 s3,s3
 	VCVT.U32.F32 s4,s4
 	VCVT.U32.F32 s5,s5
 
-	VMOV	r11,s3
-	VMOV	r10,s4
-	VMOV	r9,s5
+	VMOV	r10,s3
+	VMOV	r9,s4
+	VMOV	r8,s5
 
 	BL doneraymarch
 
@@ -421,9 +429,9 @@ nohit:
 	VADD.F32	s28,s20			@ step += d
 
 	@ colorArray.rgb = 0
-        MOV r11, $0     		        @ colorArray.r
-        MOV r10, $0             		@ colorArray.g
-        MOV r9, $0              		@ colorArray.b
+        MOV r10, $0     		        @ colorArray.r
+        MOV r9, $0	             		@ colorArray.g
+        MOV r8, $0              		@ colorArray.b
 
 	@ ray = step * dir
 	VMUL.F32	s27,s31,s28		@ ray[0] = step * dir[0]
@@ -438,11 +446,22 @@ doneraymarch:
 	@ plot pixel into buffer
 
 doneinnerloop:
+	MOV	r7,#640
+	CMP	r11,r7
+	BGT	outerloop
+
+	@ increment j
+	ADD	r11,#1
+	BL	innerloop
 
 doneouterloop:
+	MOV	r7,#480
+	CMP	r12,r7
+	BLT	outerloop
 
 
-	
+@ LOOP DONE
+	B lock
 
 
 
@@ -461,4 +480,6 @@ viewport:
 
 diffuse:
 	.float 0.4, 0.7, 1.0
+epsilon:
+	.float 0.001
 
