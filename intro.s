@@ -115,9 +115,27 @@ length3:
 	vsqrt.f32 s0, s0
 bx lr
 
-# 
+# args: r0=*x, r1=*y, r2=*z
 normalize:
+	vldr.f32 s0, [r0]
+	vldr.f32 s1, [r0,#4]
+	vldr.f32 s2, [r0,#8]
+	bl length3	
 
+	vmov.f32 s3, #1.0
+	vdiv.f32 s3, s0
+	
+	vldr.f32 s0, [r0]
+	vldr.f32 s1, [r0,#4]
+	vldr.f32 s2, [r0,#8]
+
+	vmul.f32 s0, s3
+	vmul.f32 s1, s3
+	vmul.f32 s2, s3
+
+	vstr.f32, s0, [r0]
+	vstr.f32, s1, [r0,#4]
+	vstr.f32, s2, [r0,#8]
 bx lr
 
 # args: posx, posy, posz, r
