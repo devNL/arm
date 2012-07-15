@@ -263,10 +263,69 @@ bx lr
 
 # args: s0, s1, s2, s3
 normal_at_point:
-	@VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
-	@VMOV.F32	
-	
+	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
 
+	VMOV.F32	
+
+	VMOV.F32	s4,s0
+	VMOV.F32	s5,s0
+	VMOV.F32	s6,s0
+
+	VMOV.F32	s7,s1
+	VMOV.F32	s8,s1
+	VMOV.F32	s9,s1
+
+	VMOV.F32	s10,s2
+	VMOV.F32	s11,s2
+	VMOV.F32	s12,s2
+
+	@ load epsilon
+	LDR r0,=epsilon
+	VLDR.F32 s0,[r0]
+	
+	@ += epsilon
+	VADD.F32	s4,s0
+	VADD.F32	s8,s0
+	VADD.F32	s12,s0
+
+	@ preserve s3
+	VPUSH.F32	{s3}
+
+	@ central diff calc
+	VMOV.F32	s0,s4
+	VMOV.F32	s1,s5
+	VMOV.F32	s2,s6
+
+	BL	dist
+	@ preserve result
+	VPUSH.F32	{s0}
+
+	VMOV.F32	s0,s7
+	VMOV.F32	s1,s8
+	VMOV.F32	s2,s9
+
+	BL	dist
+	@ preserve result
+	VPUSH.F32	{s0}
+	
+	VMOV.F32	s0,s10
+	VMOV.F32	s1,s11
+	VMOV.F32	s2,s12
+	
+	BL	dist
+	VMOV.F32	s2,s0
+	VPOP.F32	{s1}
+	VPOP.F32	{s0}
+
+	@ subtract d
+	VPOP.F32	{s3}
+	VSUB.F32	s0,s3
+	VSUB.F32	s1,s3
+	VSUB.F32	s2,s3
+
+	@ normalize
+
+	BL	normalize
 bx lr
 
 
