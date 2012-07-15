@@ -40,6 +40,9 @@ main_thumb:
 	mov r0, $0
 	mov r3, $0x12c000
 
+
+	bl	main_loop
+
 	.redbars:
 		mov r1, r0
 		and r1, r1, $0xFF 
@@ -265,8 +268,6 @@ bx lr
 normal_at_point:
 	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
 
-	VMOV.F32	
-
 	VMOV.F32	s4,s0
 	VMOV.F32	s5,s0
 	VMOV.F32	s6,s0
@@ -415,7 +416,7 @@ hit:
         VMOV.F32        s1,s26                  @ s1 = ray[1]
         VMOV.F32        s2,s25                  @ s2 = ray[2]
 	VMOV.F32	s3,s20			@ s3 = d
-	@BL		normalAtPoint
+	BL		normal_at_point
 	
 	@ L[0] = -ray[0]; L[1] = -ray[1]; L[2] = -ray[2] - 10.0
 	VMOV.F32	s14,#-1.0		@ L.x = -1.0
@@ -503,6 +504,25 @@ nohit:
 doneraymarch:	
 	
 	@ plot pixel into buffer
+        MOVT 	r2, $0x6002 
+	MOV	r3, #640
+	MUL	r3,r12,r3
+	ADD	r3,r11
+	
+	@ alpha
+	MOV	r4, $0xFF
+	STR	r4, [r2, r3]
+
+	@ R
+	ADD	r3, $0x4
+	STR	r10, [r2, r3]
+	@ G
+	ADD	r3, $0x4
+	STR	r3, [r2, r3]
+	@ B
+	ADD	r3, $0x4
+	STR	r8, [r2, r3]
+	
 
 doneinnerloop:
 	MOV	r7,#640
