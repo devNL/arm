@@ -6,6 +6,8 @@
 
 # previously known as intro_do, main loop
 main:
+	mov sp, $0x8000
+	movt sp, $0x6001
 	blx main_thumb
 
 main_thumb:
@@ -40,8 +42,7 @@ main_thumb:
 	mov r0, $0
 	mov r3, $0x12c000
 
-
-	bl	main_loop
+	b	main_loop
 
 	.redbars:
 		mov r1, r0
@@ -69,9 +70,11 @@ bx lr
 # args x (s0), a (s1) , b (s2)
 # return (x<a)?a:(x>b)?b:x;
 clamp:
+	push {lr}
 	bl max
 	vmov s2, s1
 	bl min
+	pop {lr}
 	bx lr
 
 # args: x (s0), a (s1)
@@ -120,6 +123,7 @@ bx lr
 
 # args: s0,s1,s2
 normalize:
+	push {lr}
 	vpush.f32 {s0,s1,s2}
 	bl length3
 
@@ -133,6 +137,7 @@ normalize:
 	vmul.f32 s1, s3
 	vmul.f32 s2, s3
 
+	pop {lr}
 	bx lr
 
 # args: posx, posy, posz, r
@@ -147,6 +152,7 @@ bx lr
 
 # args: s0=px, s1=py, s2=pz, s3=bx, s4=by, s5=bz, s6=r
 udroundbox:
+	push {lr}
 	# preserve some args
 	vmov s8, s1
 	vmov s9, s2
@@ -179,10 +185,14 @@ udroundbox:
 
 	# return t-r
 	vsub.f32 s0, s6
+	
+	pop {lr}
 bx lr
 
 # args: px, px, pz, tx, ty
 sdtorus:
+	push {lr}
+
 	bl length2
 	vmov s5, s0
 	#tmp=bla
@@ -194,10 +204,14 @@ sdtorus:
 	# arg1=pz
 	bl length2
 	vsub.f32 s0, s4
+
+	pop {lr}
 bx lr
 
 # args: px, py, pz
 dist:
+	push {lr}
+
 	# preserve args
 	vmov s10, s0
 	vmov s11, s1
@@ -218,6 +232,7 @@ dist:
 
 	vldr.f32 s3, [r0,#12]
 	vldr.f32 s4, [r0,#16]
+
 	bl sdtorus
 
 	# preserve result
@@ -251,6 +266,7 @@ dist:
 	vmov s1, s0
 	vmov s0, s13
 	bl min
+	pop {lr}
 bx lr
 
 # args: x1,x2,y1,y2,z1,z2
@@ -266,6 +282,8 @@ bx lr
 
 # args: s0, s1, s2, s3
 normal_at_point:
+	push {lr}
+
 	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
 
 	VMOV.F32	s4,s0
@@ -315,6 +333,7 @@ normal_at_point:
 	
 	BL	dist
 	VMOV.F32	s2,s0
+
 	VPOP.F32	{s1}
 	VPOP.F32	{s0}
 
@@ -325,8 +344,11 @@ normal_at_point:
 	VSUB.F32	s2,s3
 
 	@ normalize
-
 	BL	normalize
+
+done_normal:
+	VPOP.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
+	pop {lr}
 bx lr
 
 
@@ -373,18 +395,22 @@ outerloop:
 	MOV	r11,$0
 
 innerloop:
+	@ SUPER SKIP
 
 	@ dir[0] = (j*dx) - 1.0;
-	VMOV.F32	r11,s0			@ transfer j to fp register
+	VMOV.F32	s0,r11			@ transfer j to fp register
+
 	VCVT.F32.U32	s0,s0			@ convert j to floating point
 	VMOV.F32	s31,#-1.0		@ s31 = -1.0
 	VMLA.F32	s31,s0,s19		@ s31 = j*dx - 1.0
+
 	
         @ dir[1] = (i*dy) - 1.0
-	VMOV.F32	r12,s0			@ transfer i to fp register
+	VMOV.F32	s0,r12			@ transfer i to fp register
 	VCVT.F32.U32	s0,s0			@ convert i to floating point
 	VMOV.F32	s30, #-1.0		@ s30 = -1.0
 	VMLA.F32	s30,s0,s18		@ s30 = i*dy - 1.0
+
 
 	@ dir[2] = -eye[2];
 	VMOV.F32	s29, #-1.0		@ s29 = -1.0
@@ -482,9 +508,10 @@ hit:
 	VMOV	r9,s4
 	VMOV	r8,s5
 
-	BL doneraymarch
+	b doneraymarch
 
 nohit:
+	b doneraymarch
 	@ step += d
 	VADD.F32	s28,s20			@ step += d
 
@@ -499,29 +526,31 @@ nohit:
 	VMUL.F32	s25,s29,s28		@ ray[2] = step * dir[2]
 
 	@ loop again
-	BL 		raymarch
+	b 		raymarch
 
 doneraymarch:	
 	
 	@ plot pixel into buffer
-        MOVT 	r2, $0x6002 
+	mov     r2, #4
 	MOV	r3, #640
 	MUL	r3,r12,r3
 	ADD	r3,r11
-	
-	@ alpha
-	MOV	r4, $0xFF
-	STR	r4, [r2, r3]
+	MUL	r3,r3,r2
+
+	mov     r2, $0
+        MOVT 	r2, $0x6002 
 
 	@ R
-	ADD	r3, $0x4
-	STR	r10, [r2, r3]
-	@ G
-	ADD	r3, $0x4
-	STR	r3, [r2, r3]
-	@ B
-	ADD	r3, $0x4
+	@ ADD	r3, $0x4
+	mov r8, #0xff
 	STR	r8, [r2, r3]
+
+	@ G
+	@ ADD	r3, $0x4
+	@STR	r3, [r2, r3]
+	@ B
+	@ ADD	r3, $0x4
+	@ STR	r8, [r2, r3]
 	
 
 doneinnerloop:
@@ -531,7 +560,7 @@ doneinnerloop:
 
 	@ increment j
 	ADD	r11,#1
-	BL	innerloop
+	b	innerloop
 
 doneouterloop:
 	MOV	r7,#480
