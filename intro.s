@@ -511,7 +511,6 @@ hit:
 	b doneraymarch
 
 nohit:
-	b doneraymarch
 	@ step += d
 	VADD.F32	s28,s20			@ step += d
 
