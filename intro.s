@@ -540,13 +540,10 @@ doneraymarch:
 	MOV     r2, $0
         MOVT 	r2, $0x6002 
 
-	@ shift registers
-	MOV	r10,r12
-	MOV	r9,r11
-	EOR	r8,r12,r11
-	@LSL	r10, #16
-	@LSL	r9, #24
-	@LSL	r8, #24
+	MOV	r10,r12			@ TEST CODE
+	MOV	r9,r11			@ TEST CODE
+	EOR	r8,r12,r11		@ TEST CODE
+
 	@ R
 	STR	r10, [r2, r3]
 	ADD	r3,$1
