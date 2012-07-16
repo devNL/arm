@@ -326,7 +326,7 @@ normal_at_point:
 	BL	dist
 	@ preserve result
 	VPUSH.F32	{s0}
-	
+
 	VMOV.F32	s0,s10
 	VMOV.F32	s1,s11
 	VMOV.F32	s2,s12
@@ -530,41 +530,46 @@ nohit:
 doneraymarch:	
 	
 	@ plot pixel into buffer
-	mov     r2, #4
+	
+	MOV     r2, #4
 	MOV	r3, #640
-	MUL	r3,r12,r3
+	MUL	r3,r12
 	ADD	r3,r11
-	MUL	r3,r3,r2
+	MUL	r3,r2
 
-	mov     r2, $0
+	MOV     r2, $0
         MOVT 	r2, $0x6002 
 
+	@ shift registers
+	MOV	r10,r12
+	MOV	r9,r11
+	EOR	r8,r12,r11
+	@LSL	r10, #16
+	@LSL	r9, #24
+	@LSL	r8, #24
 	@ R
-	@ ADD	r3, $0x4
-	mov r8, #0xff
+	STR	r10, [r2, r3]
+	ADD	r3,$1
+	@ G
+	STR	r9, [r2, r3]
+	ADD	r3,$1
+	@ B
 	STR	r8, [r2, r3]
 
-	@ G
-	@ ADD	r3, $0x4
-	@STR	r3, [r2, r3]
-	@ B
-	@ ADD	r3, $0x4
-	@ STR	r8, [r2, r3]
 	
-
 doneinnerloop:
 	MOV	r7,#640
 	CMP	r11,r7
-	BGT	outerloop
+	BGT	doneouterloop	@ if j > 640, run the outer loop again (i++)
 
 	@ increment j
-	ADD	r11,#1
-	b	innerloop
+	ADD	r11,#1		@ inner loop not done yet (j++)
+	B	innerloop
 
 doneouterloop:
 	MOV	r7,#480
 	CMP	r12,r7
-	BLT	outerloop
+	BLT	outerloop	@ if i < 480 we need to loop more (i++)
 
 
 @ LOOP DONE
