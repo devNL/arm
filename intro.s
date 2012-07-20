@@ -48,9 +48,6 @@ main_thumb:
 	lock:	
 		b lock
 
-# TODO implement me
-init_view_port:
-bx lr
 
 # args x (s0), a (s1) , b (s2)
 # return (x<a)?a:(x>b)?b:x;
@@ -136,15 +133,6 @@ normalize:
 	pop {lr}
 bx lr
 
-# args: posx, posy, posz, r
-# return length(posx,posy,posz) - r;
-spheredist:
-	bl length3
-	vsub.f32 s0, s3
-bx lr
-
-mix:
-bx lr
 
 # args: s0=px, s1=py, s2=pz, s3=bx, s4=by, s5=bz, s6=r
 udroundbox:
