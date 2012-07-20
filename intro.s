@@ -72,7 +72,7 @@ bx lr
 clamp:
 	push {lr}
 	bl max
-	vmov s2, s1
+	vmov s1, s2
 	bl min
 	pop {lr}
 	bx lr
@@ -82,6 +82,7 @@ clamp:
 min:
 	# if (x < a) return x;
 	vcmp.f32 s0, s1
+	VMRS    	APSR_nzcv, FPSCR        @ Get the flags into APSR.
 	blt end_min
 
 	# else return a;
@@ -94,6 +95,7 @@ end_min:
 max:
 	# if (x > a) return x;
 	vcmp.f32 s0, s1
+	VMRS    	APSR_nzcv, FPSCR        @ Get the flags into APSR.
 	bgt end_max
 
 	# else return a;
@@ -127,9 +129,10 @@ normalize:
 	vpush.f32 {s0,s1,s2}
 	bl length3
 
-	vcvt.f64.f32 d16,s0
-	vrecpe.f32 d16, d16
-	vcvt.f32.f64 s3,d16
+	@vcvt.f64.f32 d16,s0
+	vrecpe.f32 d0, d0
+	@vcvt.f32.f64 s3,d16
+	vmov.f32 s3,s0
 	
 	vpop.f32 {s0,s1,s2}
 
@@ -189,51 +192,61 @@ udroundbox:
 	pop {lr}
 bx lr
 
-# args: px, px, pz, tx, ty
+# args: px, py, pz, tx, ty
 sdtorus:
-	push {lr}
+	PUSH {lr}
 
-	bl length2
-	vmov s5, s0
-	#tmp=bla
-	vsub.f32 s5, s3
-	# tmp-=tx
-	vmov s0, s5
-	# arg0=bla-tx
-	vmov s1, s2
-	# arg1=pz
-	bl length2
-	vsub.f32 s0, s4
+	BL length2
 
-	pop {lr}
-bx lr
+	@ tmp = bla
+	VMOV s5, s0
+
+	@ tmp -= tx
+	VSUB.F32 s5, s3
+
+	@ arg0 = bla-tx
+	VMOV s0, s5
+
+	@ arg1 = pz
+	VMOV s1, s2
+
+	BL length2
+	VSUB.F32 s0, s4
+
+	POP {lr}
+BX lr
 
 # args: px, py, pz
 dist:
-	push {lr}
-
+	PUSH {lr}
+	
 	# preserve args
-	vmov s10, s0
-	vmov s11, s1
-	vmov s12, s2
+	@VMOV s10, s0
+	@VMOV s11, s1
+	@VMOV s12, s2
 
 	# res1 = sdtorus(px-torus[0], py-torus[1], pz-torus[2], 3.0, 1.0)
-	ldr r0, =torus
-	vldr.f32 s3, [r0]
-	vldr.f32 s4, [r0,#4]
-	vldr.f32 s5, [r0,#8]
+	LDR r0, =torus
+	VLDR.F32 s3, [r0]
+	VLDR.F32 s4, [r0,#4]
+	VLDR.F32 s5, [r0,#8]
 
 	# px -= torus[0]
-	vsub.f32 s0, s3
+	VSUB.F32 s0, s3
+
 	# py -= torus[1]
-	vsub.f32 s1, s4
+	VSUB.F32 s1, s4
+
 	# pz -= torus[2]
-	vsub.f32 s2, s5
+	VSUB.F32 s2, s5
 
-	vldr.f32 s3, [r0,#12]
-	vldr.f32 s4, [r0,#16]
+	VLDR.F32 s3, [r0,#12]
+	VLDR.F32 s4, [r0,#16]
 
-	bl sdtorus
+	BL sdtorus
+
+	POP {lr}
+BX lr
 
 	# preserve result
 	vmov s13, s0
@@ -272,12 +285,12 @@ bx lr
 # args: x1,x2,y1,y2,z1,z2
 # return x1*x2 + y1*y2 + z1*z2
 dot:
-	vmul.f32 s0, s1
-	vmul.f32 s2, s3
-	vmul.f32 s4, s5
+	vmul.f32 s0, s3
+	vmul.f32 s1, s4
+	vmul.f32 s2, s5
 
+	vadd.f32 s0, s1
 	vadd.f32 s0, s2
-	vadd.f32 s0, s4
 bx lr
 
 # args: s0, s1, s2, s3
@@ -287,15 +300,15 @@ normal_at_point:
 	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
 
 	VMOV.F32	s4,s0
-	VMOV.F32	s5,s0
-	VMOV.F32	s6,s0
+	VMOV.F32	s5,s1
+	VMOV.F32	s6,s2
 
-	VMOV.F32	s7,s1
+	VMOV.F32	s7,s0
 	VMOV.F32	s8,s1
-	VMOV.F32	s9,s1
+	VMOV.F32	s9,s2
 
-	VMOV.F32	s10,s2
-	VMOV.F32	s11,s2
+	VMOV.F32	s10,s0
+	VMOV.F32	s11,s1
 	VMOV.F32	s12,s2
 
 	@ load epsilon
@@ -354,10 +367,11 @@ bx lr
 
 main_loop:
 
-	LDR r0,=floats
-	VLDR.32 s31,[r0] 	@ dir.x
-	VLDR.32 s30,[r0] 	@ dir.y
-	VLDR.32 s29,[r0]	@ dir.z
+        LDR r0,=floats
+
+	VSUB.F32 s31,s31 	@ dir.x
+	VSUB.F32 s30,s30 	@ dir.y
+	VSUB.F32 s29,s29	@ dir.z
 
 	MOV r12, $0		@ i
 	MOV r11, $0		@ j
@@ -365,6 +379,7 @@ main_loop:
 	VLDR.32 s28,[r0]	@ step
 
 				@ s27 = ray.x, s26 = ray.y, s25 = ray.z
+
 
 	VLDR.32 s24,[r0]	@ color.r
 	VLDR.32 s23,[r0]	@ color.g
@@ -389,8 +404,8 @@ main_loop:
 outerloop:
 
 	@ increment i
-	ADD	r12,#1
-	
+	ADD	r12,$1
+
 	@ j = 0
 	MOV	r11,$0
 
@@ -400,20 +415,19 @@ innerloop:
 	@ dir[0] = (j*dx) - 1.0;
 	VMOV.F32	s0,r11			@ transfer j to fp register
 
-	VCVT.F32.U32	s0,s0			@ convert j to floating point
+	VCVT.F32.S32	s0,s0			@ convert j to floating point
 	VMOV.F32	s31,#-1.0		@ s31 = -1.0
 	VMLA.F32	s31,s0,s19		@ s31 = j*dx - 1.0
 
 	
         @ dir[1] = (i*dy) - 1.0
 	VMOV.F32	s0,r12			@ transfer i to fp register
-	VCVT.F32.U32	s0,s0			@ convert i to floating point
+	VCVT.F32.S32	s0,s0			@ convert i to floating point
 	VMOV.F32	s30, #-1.0		@ s30 = -1.0
 	VMLA.F32	s30,s0,s18		@ s30 = i*dy - 1.0
 
-
 	@ dir[2] = -eye[2];
-	VMOV.F32	s29, #-1.0		@ s29 = -1.0
+	VMOV.F32	s29, #1.0		@ s29 = 1.0
 
 	@ ray.xyz = eye.xyz
 	VSUB.F32	s27, s27		@ ray[0] = 0.0
@@ -433,32 +447,45 @@ raymarch:
 	VMOV.F32	s20,s0			@ d = result
 
 	@ ray hit
-	VCMP.F32	s20,#0			@ d > 0 ?
+	VMOV.F32	s0,#0.125		@ raymarch threshold
+	VCMP.F32	s20,s0			@ d > 0.125 ?
+	VMRS    	APSR_nzcv, FPSCR        @ Get the flags into APSR.
 	BGT		nohit			@ skip hit code
 
 hit:
+
 	@ NormalAtPoint(ray[0], ray[1], ray[2], d, &N[0]);
         VMOV.F32        s0,s27                  @ s0 = ray[0]
         VMOV.F32        s1,s26                  @ s1 = ray[1]
         VMOV.F32        s2,s25                  @ s2 = ray[2]
 	VMOV.F32	s3,s20			@ s3 = d
 	BL		normal_at_point
+
+	@VMOV.F32	s0,#0.125
+	@VMOV.F32	s1,#0.125
+	@VMOV.F32	s2,#-1.0
+
+	@BL		normalize
+
+	VMOV.F32	s17,s0
+	VMOV.F32	s16,s1
+	VMOV.F32	s15,s2
 	
 	@ L[0] = -ray[0]; L[1] = -ray[1]; L[2] = -ray[2] - 10.0
 	VMOV.F32	s14,#-1.0		@ L.x = -1.0
-	VMOV.F32	s12,#-10.0		@ L.z = -10.0
+	VMOV.F32	s2,#-10.0		@ L.z = -10.0
 
+	VMUL.F32	s0,s27,s14		@ L.x = -1.0 * ray[0]
 	VMUL.F32	s1,s26,s14		@ L.y = ray[1] * -1.0
 	VMLA.F32	s2,s25,s14		@ L.z = -10.0 + (ray[2] * -1.0)
-	VMUL.F32	s0,s27,s14		@ L.x = -1.0 * ray[0]
 
 	@ Normalize L
 	BL normalize
-	
+
 	@ H = L - ray
 	@ VSUB.F32	s0,s27
 	@ VSUB.F32	s1,s26
-	@ VSUB.F32	s2,s25	
+	@ VSUB.F32	s2,s25
 
 	@ Normalize H
 	@ BL normalize
@@ -478,12 +505,13 @@ hit:
 	@ color = colorDiffuse * diffuseTerm
 
 	LDR r0,=diffuse
-	
+
         VLDR.F32 s3,[r0]        @ diffuse.r
         VLDR.F32 s4,[r0,#4]     @ diffuse.g
         VLDR.F32 s5,[r0,#8]     @ diffuse.b
 
-	VMUL.F32 s3,s0	
+	@ multiply with diffuse term
+	VMUL.F32 s3,s0
 	VMUL.F32 s4,s0
 	VMUL.F32 s5,s0
 
@@ -493,31 +521,39 @@ hit:
 	@ color += specular*(1.0 - color)
 	@ colorArray = color * 255
 
-	VMOV.F32 s0,#16.0
-	VMUL.F32 s0,s0
+	VMOV.F32 s0,#15.0
+	VMOV.F32 s1,#15.0
+	VMUL.F32 s0,s0,s1
 
-	VMUL.F32 s3,s0	
+	VMUL.F32 s3,s0
 	VMUL.F32 s4,s0
 	VMUL.F32 s5,s0
-		
+
 	VCVT.U32.F32 s3,s3
 	VCVT.U32.F32 s4,s4
 	VCVT.U32.F32 s5,s5
 
 	VMOV	r10,s3
-	VMOV	r9,s4
+	VMOV	r9,s4			@ test code
+	@MOV	r9,$0xff		@ test code
 	VMOV	r8,s5
 
-	b doneraymarch
+	B doneraymarch
 
 nohit:
 	@ step += d
 	VADD.F32	s28,s20			@ step += d
 
+
 	@ colorArray.rgb = 0
         MOV r10, $0     		        @ colorArray.r
-        MOV r9, $0	             		@ colorArray.g
+        MOV r9, $0x30	             		@ colorArray.g
         MOV r8, $0              		@ colorArray.b
+
+	VMOV		s27,#31.0
+	VCMP.F32	s28,s27
+	VMRS    	APSR_nzcv, FPSCR        @ Get the flags into APSR.
+	BGT		doneraymarch		@ step > 16?
 
 	@ ray = step * dir
 	VMUL.F32	s27,s31,s28		@ ray[0] = step * dir[0]
@@ -525,7 +561,7 @@ nohit:
 	VMUL.F32	s25,s29,s28		@ ray[2] = step * dir[2]
 
 	@ loop again
-	b 		raymarch
+	B 		raymarch
 
 doneraymarch:	
 	
@@ -540,9 +576,9 @@ doneraymarch:
 	MOV     r2, $0
         MOVT 	r2, $0x6002 
 
-	MOV	r10,r12			@ TEST CODE
-	MOV	r9,r11			@ TEST CODE
-	EOR	r8,r12,r11		@ TEST CODE
+	@MOV	r10,r12			@ TEST CODE
+	@MOV	r9,r11			@ TEST CODE
+	@EOR	r8,r12,r11		@ TEST CODE
 
 	@ R
 	STR	r10, [r2, r3]
@@ -576,7 +612,7 @@ doneouterloop:
 
 # last 2 are torus() args
 torus:
-	.float 4.0, 0.0, 9.0, 3.0, 1.0
+	.float 1.0, 0.0, 10.0, 3.0, 1.5
 
 box:
 	.float -3.0, 0.0, 10.0, 0.75, 3.0, 0.5, 1.0
@@ -585,7 +621,7 @@ floats:
  	.float 0.0, 1.0
 
 viewport:
-	.float 0.002350, 0.004167 	@ dx dy
+	.float 0.004156, 0.004167 	@ dx dy
 
 diffuse:
 	.float 0.4, 0.7, 1.0
