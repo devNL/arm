@@ -44,21 +44,6 @@ main_thumb:
 
 	b	main_loop
 
-	.redbars:
-		mov r1, r0
-		and r1, r1, $0xFF 
-		str r1, [r2, r0]
-		add r0, r0, $4
-		cmp r0, r3
-	bne .redbars
-
-	#yloop:
-	#	xloop:
-	#		steploop:
-	#		bne steploop
-	#	bne xloop
-	#bne yloop
-
 	# HALT, hammerzeit!
 	lock:	
 		b lock
