@@ -138,12 +138,14 @@ udroundbox:
 	VSUB.F32 s1, s1
 
 	# px = max(abs(px)-bx, 0.0)
+	VMOV.F32 s3, #0.5
 	VABS.F32 s0, s0
 	VSUB.F32 s0, s3
 	BL max
 	VMOV s7, s0
 
 	# py = max(abs(py)-by, 0.0)
+	VMOV.F32 s4, #3.0
 	VABS.F32 s0, s8
 	VSUB.F32 s0, s4
 	BL max
@@ -151,7 +153,7 @@ udroundbox:
 
 	# pz = max(abs(pz)-bz, 0.0)
 	VABS.F32 s0, s9
-	VSUB.F32 s0, s5
+	VSUB.F32 s0, s3
 	BL max
 
 	# t = length3(px, py, pz)
@@ -161,6 +163,7 @@ udroundbox:
 	BL length3
 
 	# return t-r
+	VMOV.F32 s6,#1.0
 	VSUB.F32 s0, s6
 
 	POP {lr}
@@ -193,27 +196,20 @@ BX lr
 # args: px, py, pz
 dist:
 	PUSH {lr}
-	
+
 	# preserve args
 	VPUSH.F32 {s0,s1,s2}
 
 	# res1 = sdtorus(px-torus[0], py-torus[1], pz-torus[2], 3.0, 1.0)
-	LDR r0, =torus
-	VLDR.F32 s3, [r0]
-	VLDR.F32 s4, [r0,#4]
-	VLDR.F32 s5, [r0,#8]
+	VMOV.F32 s4, #4.0
+	VSUB.F32 s5,s5
+	VMOV.F32 s6, #10.0
 
-	# px -= torus[0]
-	VSUB.F32 s0, s3
+	# p -= torus
+	VSUB.F32 q0,q1
 
-	# py -= torus[1]
-	VSUB.F32 s1, s4
-
-	# pz -= torus[2]
-	VSUB.F32 s2, s5
-
-	VLDR.F32 s3, [r0,#12]
-	VLDR.F32 s4, [r0,#16]
+	VMOV.F32 s3, #3.0
+	VMOV.F32 s4, #1.0
 
 	BL sdtorus
 
@@ -223,22 +219,12 @@ dist:
 	# res2 = udroundbox(px-box[0], py-box[1], pz-box[2], 0.75, 3.0, 0.5, 1.0)
 	VPOP {s0,s1,s2}
 
-	LDR r1, =box
-	VLDR.F32 s3, [r1]
-	VLDR.F32 s4, [r1,#4]
-	VLDR.f32 s5, [r1,#8]
+	VMOV.F32 s4,#-3.0
+	VSUB.F32 s5,s5
+	VMOV.F32 s6,#10.0
 
-	# px -= box[0]
-	VSUB.F32 s0, s3
-	# py -= box[1]
-	VSUB.F32 s1, s4
-	# pz -= box[2]
-	VSUB.F32 s2, s5
-
-	VLDR.f32 s3, [r1,#12]
-	VLDR.f32 s4, [r1,#16]
-	VLDR.f32 s5, [r1,#20]
-	VLDR.f32 s6, [r1,#24]
+	# p -= box
+	VSUB.F32 q0,q1
 
 	BL udroundbox
 
@@ -594,14 +580,6 @@ doneouterloop:
 @ LOOP DONE
 	B lock
 
-
-
-# last 2 are torus() args
-torus:
-	.float 4.0, 0.0, 10.0, 3.0, 1.2
-
-box:
-	.float -3.0, 0.0, 10.0, 0.5, 3.0, 0.5, 1.0
 
 
 viewport:
