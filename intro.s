@@ -169,14 +169,9 @@ sdtorus:
 
 	BL length2
 
-	@ tmp = bla
-	VMOV s5, s0
-
 	@ tmp -= tx
-	VSUB.F32 s5, s3
-
 	@ arg0 = bla-tx
-	VMOV s0, s5
+	VSUB.F32 s0,s0, s3
 
 	@ arg1 = pz
 	VMOV s1, s2
@@ -442,11 +437,9 @@ hit:
 
 	@ color = colorDiffuse * diffuseTerm
 
-	LDR r0,=diffuse
-
-        VLDR.F32 s3,[r0]        @ diffuse.r
-        VLDR.F32 s4,[r0,#4]     @ diffuse.g
-        VLDR.F32 s5,[r0,#8]     @ diffuse.b
+	VMOV.F32 s3, #0.25	@ diffuse.r
+	VMOV.F32 s4, #0.75	@ diffuse.g
+	VMOV.F32 s5, #1.0	@ diffuse.b
 
 	@ multiply with diffuse term
 	VMUL.F32 s3,s0
@@ -579,6 +572,4 @@ doneouterloop:
 viewport:
 	.float 0.004156, 0.004167 	@ dx dy
 
-diffuse:
-	.float 0.2, 0.9, 1.0
 
