@@ -105,9 +105,7 @@ bx lr
 # args: x (s0), y (s1), z (s2)
 # return sqrtf(x*x+y*y+z*z);
 dot3:
-	vmul.f32 s0, s0
-	vmul.f32 s1, s1
-	vmul.f32 s2, s2
+	VMUL.F32 q0,q0
 	vadd.f32 s0, s1
 	vadd.f32 s0, s2
 bx lr
@@ -119,13 +117,11 @@ normalize:
 	bl dot3
 
 	VRSQRTE.F32 d0, d0
-	vmov.f32 s3,s0
+	vmov.f32 s4,s0
 
 	vpop.f32 {s0,s1,s2}
 
-	vmul.f32 s0, s3
-	vmul.f32 s1, s3
-	vmul.f32 s2, s3
+	VMUL.F32 q0,d2[0]
 
 	pop {lr}
 bx lr
@@ -256,9 +252,7 @@ bx lr
 # args: x1,x2,y1,y2,z1,z2
 # return x1*x2 + y1*y2 + z1*z2
 dot:
-	vmul.f32 s0, s3
-	vmul.f32 s1, s4
-	vmul.f32 s2, s5
+	VMUL.F32 q0,q1
 
 	vadd.f32 s0, s1
 	vadd.f32 s0, s2
@@ -289,9 +283,7 @@ normal_at_point:
 	VMOV.F32	s12,s2
 
 	@ load epsilon
-	LDR r0,=epsilon
-	VLDR.F32 s0,[r0]
-	@VMOV.F32	s0,#0.125
+	VMOV.F32	s0,#0.125
 
 	@ += epsilon
 	VADD.F32	s4,s0
@@ -350,29 +342,27 @@ bx lr
 
 main_loop:
 
-        LDR r0,=floats
-
-	VSUB.F32 s31,s31 	@ dir.x
-	VSUB.F32 s30,s30 	@ dir.y
-	VSUB.F32 s29,s29	@ dir.z
+	@VSUB.F32 s31,s31 	@ dir.x
+	@VSUB.F32 s30,s30 	@ dir.y
+	@VSUB.F32 s29,s29	@ dir.z
 
 	MOV r12, $0		@ i
 	MOV r11, $0		@ j
 
-	VLDR.32 s28,[r0]	@ step
+	@VLDR.32 s28,[r0]	@ step
 
 				@ s27 = ray.x, s26 = ray.y, s25 = ray.z
 
 
-	VLDR.32 s24,[r0]	@ color.r
-	VLDR.32 s23,[r0]	@ color.g
-	VLDR.32 s22,[r0]	@ color.b
+	@VLDR.32 s24,[r0]	@ color.r
+	@VLDR.32 s23,[r0]	@ color.g
+	@VLDR.32 s22,[r0]	@ color.b
 
 				@ s21 = specular
 
-	MOV r10, $0		@ colorArray.r
-	MOV r9, $0		@ colorArray.g
-	MOV r8, $0		@ colorArray.b
+	@MOV r10, $0		@ colorArray.r
+	@MOV r9, $0		@ colorArray.g
+	@MOV r8, $0		@ colorArray.b
 
 	@ s20 = d
 	LDR r1, =viewport
@@ -392,8 +382,6 @@ outerloop:
 	MOV	r11,$0
 
 innerloop:
-	@ SUPER SKIP
-
 	@ dir[0] = (j*dx) - 1.0;
 	VMOV.F32	s0,r11			@ transfer j to fp register
 
@@ -461,9 +449,9 @@ hit:
 	VPUSH.F32	{s0,s1,s2}
 
 	@ calculate diffuse term
-	VMOV.F32	s3,s17		@ s3 = N.x
-	VMOV.F32	s4,s16		@ s4 = N.y
-	VMOV.F32	s5,s15		@ s5 = N.z
+	VMOV.F32	s4,s17		@ s3 = N.x
+	VMOV.F32	s5,s16		@ s4 = N.y
+	VMOV.F32	s6,s15		@ s5 = N.z
 
 	BL 	dot
 
@@ -497,9 +485,9 @@ hit:
 	BL normalize
 
 	@ specular = dot(N,H)
-	VMOV.F32	s3,s17
-	VMOV.F32	s4,s16
-	VMOV.F32	s5,s15
+	VMOV.F32	s4,s17
+	VMOV.F32	s5,s16
+	VMOV.F32	s6,s15
 
 	BL	dot
 
@@ -509,46 +497,34 @@ hit:
 	BL 	clamp
 
 	@ specular = pow(specular, 50)
-	MOV		r0,#5
+	MOV		r0,#6
 specloop:
 	VMUL.F32	s0,s0
 	SUB		r0,#1
 	CMP		r0,#0
 	BGT		specloop
-	
-	VPOP.F32	{s3,s4,s5}
+
+	@ pop color
+	VPOP.F32	{s4,s5,s6}	@ q1
 
 	@ color += specular*(1.0 - color)
-	VMOV.F32	s6,#1.0
-	VMOV.F32	s7,#1.0
-	VMOV.F32	s8,#1.0
+	VMOV.F32	q2,#1.0		@ q2
 
-	VSUB.F32	s6,s3	@ 1.0 - color
-	VSUB.F32	s7,s4
-	VSUB.F32	s8,s5
+	VSUB.F32	q2,q1		@ q2 - q1 // 1.0 - color
 
-	VMLA.F32	s3,s6,s0	@ color += specular * x
-	VMLA.F32	s4,s7,s0
-	VMLA.F32	s5,s8,s0
+	VMLA.F32	q1,q2,d0[0]	@ q1 += q2 * s0 // color += specular * x
 
 	@ colorArray = color * 255
-
 	VMOV.F32 s0,#15.0
 	VMOV.F32 s1,#15.0
 	VMUL.F32 s0,s0,s1
 
-	VMUL.F32 s3,s0
-	VMUL.F32 s4,s0
-	VMUL.F32 s5,s0
+	VMUL.F32	q1,d0[0]	@ q1 * 255
+	VCVT.U32.F32	q1,q1
 
-	VCVT.U32.F32 s3,s3
-	VCVT.U32.F32 s4,s4
-	VCVT.U32.F32 s5,s5
-
-	VMOV	r10,s3
-	VMOV	r9,s4			@ test code
-	@MOV	r9,$0xff		@ test code
-	VMOV	r8,s5
+	VMOV	r10,s4
+	VMOV	r9,s5
+	VMOV	r8,s6
 
 	B doneraymarch
 
@@ -627,14 +603,10 @@ torus:
 box:
 	.float -3.0, 0.0, 10.0, 0.5, 3.0, 0.5, 1.0
 
-floats:
- 	.float 0.0, 1.0
 
 viewport:
 	.float 0.004156, 0.004167 	@ dx dy
 
 diffuse:
-	.float 0.4, 0.7, 1.0
-epsilon:
-	.float 0.01
+	.float 0.2, 0.9, 1.0
 
