@@ -42,307 +42,15 @@ main_thumb:
 	mov r0, $0
 	mov r3, $0x12c000
 
-	b	main_loop
-
-	# HALT, hammerzeit!
-	lock:	
-		b lock
-
-
-# args x (s0), a (s1) , b (s2)
-# return (x<a)?a:(x>b)?b:x;
-clamp:
-	push {lr}
-	bl max
-	vmov s1, s2
-	bl min
-	pop {lr}
-	bx lr
-
-# args: x (s0), a (s1)
-# return (x<a)?x:a;
-min:
-	# if (x < a) return x;
-	vcmp.f32 s0, s1
-	VMRS    	APSR_nzcv, FPSCR        @ Get the flags into APSR.
-	blt end_min
-
-	# else return a;
-	vmov s0, s1
-end_min:
-	bx lr
-
-# args: x (s0), a (s1)
-# return (x>a)?x:a;
-max:
-	# if (x > a) return x;
-	vcmp.f32 s0, s1
-	VMRS    	APSR_nzcv, FPSCR        @ Get the flags into APSR.
-	bgt end_max
-
-	# else return a;
-	vmov s0, s1
-end_max:
-	bx lr
-
-# args: x (s0), y (s1)
-# return sqrtf(x*x+y*y);
-length2:
-	VMUL.F32 d0, d0
-	vadd.f32 s0, s1
-	vsqrt.f32 s0, s0
-bx lr
-
-
-# args: x (s0), y (s1), z (s2)
-# return sqrtf(x*x+y*y+z*z);
-dot3:
-	VMUL.F32 q0,q0
-	vadd.f32 s0, s1
-	vadd.f32 s0, s2
-bx lr
-
-# args: s0,s1,s2
-normalize:
-	push {lr}
-	vpush.f32 {s0,s1,s2}
-	bl dot3
-
-	VRSQRTE.F32 d0, d0
-	vmov.f32 s4,s0
-
-	vpop.f32 {s0,s1,s2}
-
-	VMUL.F32 q0,d2[0]
-
-	pop {lr}
-bx lr
-
-
-# args: s0=px, s1=py, s2=pz, s3=bx, s4=by, s5=bz, s6=r
-udroundbox:
-	PUSH {lr}
-	# preserve some args
-	VMOV s8, s1
-	VMOV s9, s2
-
-	# arg1 to max is always 0
-	VSUB.F32 s1, s1
-
-	# px = max(abs(px)-bx, 0.0)
-	VMOV.F32 s3, #0.5
-	VABS.F32 s0, s0
-	VSUB.F32 s0, s3
-	BL max
-	VMOV s7, s0
-
-	# py = max(abs(py)-by, 0.0)
-	VMOV.F32 s4, #3.0
-	VABS.F32 s0, s8
-	VSUB.F32 s0, s4
-	BL max
-	VMOV s8, s0
-
-	# pz = max(abs(pz)-bz, 0.0)
-	VABS.F32 s0, s9
-	VSUB.F32 s0, s3
-	BL max
-
-	# t = length3(px, py, pz)
-	VMOV s2, s0
-	VMOV s1, s8
-	VMOV s0, s7
-	BL dot3
-	vsqrt.f32 s0, s0
-
-
-	# return t-r
-	VMOV.F32 s6,#1.0
-	VSUB.F32 s0, s6
-
-	POP {lr}
-bx lr
-
-# args: px, py, pz, tx, ty
-sdtorus:
-	PUSH {lr}
-
-	BL length2
-
-	@ tmp -= tx
-	@ arg0 = bla-tx
-	VSUB.F32 s0,s0, s3
-
-	@ arg1 = pz
-	VMOV s1, s2
-
-	BL length2
-	VSUB.F32 s0, s4
-
-	POP {lr}
-BX lr
-
-# args: px, py, pz
-dist:
-	PUSH {lr}
-
-	# preserve args
-	VPUSH.F32 {s0,s1,s2}
-
-	# res1 = sdtorus(px-torus[0], py-torus[1], pz-torus[2], 3.0, 1.0)
-	VMOV.F32 s4, #4.0
-	VSUB.F32 s5,s5
-	VMOV.F32 s6, #10.0
-
-	# p -= torus
-	VSUB.F32 q0,q1
-
-	VMOV.F32 s3, #3.0
-	VMOV.F32 s4, #1.0
-
-	BL sdtorus
-
-	# preserve result
-	VMOV s13, s0
-
-	# res2 = udroundbox(px-box[0], py-box[1], pz-box[2], 0.75, 3.0, 0.5, 1.0)
-	VPOP {s0,s1,s2}
-
-	VMOV.F32 s4,#-3.0
-	VSUB.F32 s5,s5
-	VMOV.F32 s6,#10.0
-
-	# p -= box
-	VSUB.F32 q0,q1
-
-	BL udroundbox
-
-	# return min(res1, res2)
-	VMOV.F32 s1, s0
-	VMOV.F32 s0, s13
-	BL min
-	pop {lr}
-bx lr
-
-# args: x1,x2,y1,y2,z1,z2
-# return x1*x2 + y1*y2 + z1*z2
-dot:
-	VMUL.F32 q0,q1
-
-	vadd.f32 s0, s1
-	vadd.f32 s0, s2
-bx lr
-
-# args: s0, s1, s2, s3
-normal_at_point:
-	push {lr}
-
-	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
-
-	@ preserve s3
-	VPUSH.F32	{s3}	@ D
-
-	@ Nx1
-	VMOV.F32	s4,s0
-	VMOV.F32	s5,s1
-	VMOV.F32	s6,s2
-
-	@ Ny1
-	VMOV.F32	s7,s0
-	VMOV.F32	s8,s1
-	VMOV.F32	s9,s2
-
-	@ Nz1
-	VMOV.F32	s10,s0
-	VMOV.F32	s11,s1
-	VMOV.F32	s12,s2
-
-	@ load epsilon
-	VMOV.F32	s0,#0.125
-
-	@ += epsilon
-	VADD.F32	s4,s0
-	VADD.F32	s8,s0
-	VADD.F32	s12,s0
-
-	@ central diff calc
-	VMOV.F32	s0,s4
-	VMOV.F32	s1,s5
-	VMOV.F32	s2,s6
-
-	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
-	BL	dist
-	VPOP.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
-	@ preserve result NX1
-	VPUSH.F32	{s0}	@ NX1
-
-	VMOV.F32	s0,s7
-	VMOV.F32	s1,s8
-	VMOV.F32	s2,s9
-
-	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
-	BL	dist
-	VPOP.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
-
-	@ preserve result NY1
-	VPUSH.F32	{s0}	@ NY1
-
-	VMOV.F32	s0,s10
-	VMOV.F32	s1,s11
-	VMOV.F32	s2,s12
-
-	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
-	BL	dist
-	VPOP.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
-
-	VMOV.F32	s2,s0	@ NZ1
-
-	VPOP.F32	{s1}	@ NY1
-	VPOP.F32	{s0}	@ NX1
-
-	@ subtract d
-	VPOP.F32	{s3}	@ D
-	VSUB.F32	s0,s3	@ NX1 - D
-	VSUB.F32	s1,s3	@ NY1 - D
-	VSUB.F32	s2,s3	@ NZ1 - D
-
-	@ normalize
-	BL	normalize
-
-done_normal:
-	VPOP.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
-	pop {lr}
-bx lr
-
-
 main_loop:
-
-	@VSUB.F32 s31,s31 	@ dir.x
-	@VSUB.F32 s30,s30 	@ dir.y
-	@VSUB.F32 s29,s29	@ dir.z
-
 	MOV r12, $0		@ i
 	MOV r11, $0		@ j
 
-	@VLDR.32 s28,[r0]	@ step
-
 				@ s27 = ray.x, s26 = ray.y, s25 = ray.z
-
-
-	@VLDR.32 s24,[r0]	@ color.r
-	@VLDR.32 s23,[r0]	@ color.g
-	@VLDR.32 s22,[r0]	@ color.b
-
 				@ s21 = specular
-
-	@MOV r10, $0		@ colorArray.r
-	@MOV r9, $0		@ colorArray.g
-	@MOV r8, $0		@ colorArray.b
-
 	@ s20 = d
 	LDR r1, =viewport
-	VLDR.32 s19,[r1]	@ dx
-	VLDR.32 s18,[r1,#4]	@ dy
+	VLDM.F32 r1, {s18, s19}
 
 	@ s17, s16, s15 = N
 	@ s14, s13, s12 = L
@@ -550,8 +258,7 @@ doneraymarch:
 
 	
 doneinnerloop:
-	MOV	r7,#640
-	CMP	r11,r7
+	CMP	r11,#640
 	BGT	doneouterloop	@ if j > 640, run the outer loop again (i++)
 
 	@ increment j
@@ -559,17 +266,278 @@ doneinnerloop:
 	B	innerloop
 
 doneouterloop:
-	MOV	r7,#480
-	CMP	r12,r7
+	CMP	r12,#480
 	BLT	outerloop	@ if i < 480 we need to loop more (i++)
 
 
-@ LOOP DONE
-	B lock
+	# HALT, hammerzeit!
+	lock:	
+		b lock
 
+
+# args x (s0), a (s1) , b (s2)
+# return (x<a)?a:(x>b)?b:x;
+clamp:
+	push {lr}
+	bl max
+	vmov s1, s2
+	bl min
+	pop {lr}
+	bx lr
+
+# args: x (s0), a (s1)
+# return (x<a)?x:a;
+min:
+	# if (x < a) return x;
+	vcmp.f32 s0, s1
+	VMRS    	APSR_nzcv, FPSCR        @ Get the flags into APSR.
+	blt end_min
+
+	# else return a;
+	vmov s0, s1
+end_min:
+	bx lr
+
+# args: x (s0), a (s1)
+# return (x>a)?x:a;
+max:
+	# if (x > a) return x;
+	vcmp.f32 s0, s1
+	VMRS    	APSR_nzcv, FPSCR        @ Get the flags into APSR.
+	bgt end_max
+
+	# else return a;
+	vmov s0, s1
+end_max:
+	bx lr
+
+# args: x (s0), y (s1)
+# return sqrtf(x*x+y*y);
+length2:
+	VMUL.F32 d0, d0
+	vadd.f32 s0, s1
+	vsqrt.f32 s0, s0
+bx lr
+
+
+# args: x (s0), y (s1), z (s2)
+# return sqrtf(x*x+y*y+z*z);
+dot3:
+	VMUL.F32 q0,q0
+	vadd.f32 s0, s1
+	vadd.f32 s0, s2
+bx lr
+
+# args: s0,s1,s2
+normalize:
+	push {lr}
+	vpush.f32 {s0,s1,s2}
+	bl dot3
+
+	VRSQRTE.F32 d0, d0
+	vmov.f32 s4,s0
+
+	vpop.f32 {s0,s1,s2}
+
+	VMUL.F32 q0,d2[0]
+
+	pop {lr}
+bx lr
+
+
+# args: s0=px, s1=py, s2=pz, s3=bx, s4=by, s5=bz, s6=r
+udroundbox:
+	PUSH {lr}
+	# preserve some args
+	VMOV s8, s1
+	VMOV s9, s2
+
+	# arg1 to max is always 0
+	VSUB.F32 s1, s1
+
+	# px = max(abs(px)-bx, 0.0)
+	VMOV.F32 s3, #0.5
+	VABS.F32 s0, s0
+	VSUB.F32 s0, s3
+	BL max
+	VMOV s7, s0
+
+	# py = max(abs(py)-by, 0.0)
+	VMOV.F32 s4, #3.0
+	VABS.F32 s0, s8
+	VSUB.F32 s0, s4
+	BL max
+	VMOV s8, s0
+
+	# pz = max(abs(pz)-bz, 0.0)
+	VABS.F32 s0, s9
+	VSUB.F32 s0, s3
+	BL max
+
+	# t = length3(px, py, pz)
+	VMOV s2, s0
+	VMOV s1, s8
+	VMOV s0, s7
+	BL dot3
+	vsqrt.f32 s0, s0
+
+
+	# return t-r
+	VMOV.F32 s6,#1.0
+	VSUB.F32 s0, s6
+
+	POP {lr}
+bx lr
+
+# args: px, py, pz, tx, ty
+sdtorus:
+	PUSH {lr}
+
+	BL length2
+
+	@ tmp -= tx
+	@ arg0 = bla-tx
+	VSUB.F32 s0,s0, s3
+
+	@ arg1 = pz
+	VMOV s1, s2
+
+	BL length2
+	VSUB.F32 s0, s4
+
+	POP {lr}
+BX lr
+
+# args: px, py, pz
+dist:
+	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
+	PUSH {lr}
+
+	# preserve args
+	VPUSH.F32 {s0,s1,s2}
+
+	# res1 = sdtorus(px-torus[0], py-torus[1], pz-torus[2], 3.0, 1.0)
+	VMOV.F32 s4, #4.0
+	VSUB.F32 s5,s5
+	VMOV.F32 s6, #10.0
+
+	# p -= torus
+	VSUB.F32 q0,q1
+
+	VMOV.F32 s3, #3.0
+	VMOV.F32 s4, #1.0
+
+	BL sdtorus
+
+	# preserve result
+	VMOV s13, s0
+
+	# res2 = udroundbox(px-box[0], py-box[1], pz-box[2], 0.75, 3.0, 0.5, 1.0)
+	VPOP {s0,s1,s2}
+
+	VMOV.F32 s4,#-3.0
+	VSUB.F32 s5,s5
+	VMOV.F32 s6,#10.0
+
+	# p -= box
+	VSUB.F32 q0,q1
+
+	BL udroundbox
+
+	# return min(res1, res2)
+	VMOV.F32 s1, s0
+	VMOV.F32 s0, s13
+	BL min
+	pop {lr}
+	VPOP.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
+bx lr
+
+# args: x1,x2,y1,y2,z1,z2
+# return x1*x2 + y1*y2 + z1*z2
+dot:
+	VMUL.F32 q0,q1
+
+	vadd.f32 s0, s1
+	vadd.f32 s0, s2
+bx lr
+
+# args: s0, s1, s2, s3
+normal_at_point:
+	push {lr}
+
+	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
+
+	@ preserve s3
+	VPUSH.F32	{s3}	@ D
+
+	@ Nx1
+	VMOV.F32	s4,s0
+	VMOV.F32	s5,s1
+	VMOV.F32	s6,s2
+
+	@ Ny1
+	VMOV.F32	s7,s0
+	VMOV.F32	s8,s1
+	VMOV.F32	s9,s2
+
+	@ Nz1
+	VMOV.F32	s10,s0
+	VMOV.F32	s11,s1
+	VMOV.F32	s12,s2
+
+	@ load epsilon
+	VMOV.F32	s0,#0.125
+
+	@ += epsilon
+	VADD.F32	s4,s0
+	VADD.F32	s8,s0
+	VADD.F32	s12,s0
+
+	@ central diff calc
+	VMOV.F32	s0,s4
+	VMOV.F32	s1,s5
+	VMOV.F32	s2,s6
+
+	BL	dist
+	@ preserve result NX1
+	VPUSH.F32	{s0}	@ NX1
+
+	VMOV.F32	s0,s7
+	VMOV.F32	s1,s8
+	VMOV.F32	s2,s9
+
+	BL	dist
+
+	@ preserve result NY1
+	VPUSH.F32	{s0}	@ NY1
+
+	VMOV.F32	s0,s10
+	VMOV.F32	s1,s11
+	VMOV.F32	s2,s12
+
+	BL	dist
+
+	VMOV.F32	s2,s0	@ NZ1
+
+	VPOP.F32	{s1}	@ NY1
+	VPOP.F32	{s0}	@ NX1
+
+	@ subtract d
+	VPOP.F32	{s3}	@ D
+	VSUB.F32	s0,s3	@ NX1 - D
+	VSUB.F32	s1,s3	@ NY1 - D
+	VSUB.F32	s2,s3	@ NZ1 - D
+
+	@ normalize
+	BL	normalize
+
+done_normal:
+	VPOP.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
+	pop {lr}
+bx lr
 
 
 viewport:
-	.float 0.004156, 0.004167 	@ dx dy
+	.float 0.004167, 0.004156 @ dx dy
 
 
