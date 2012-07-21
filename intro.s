@@ -93,14 +93,6 @@ length2:
 	vsqrt.f32 s0, s0
 bx lr
 
-# args: x (s0), y (s1), z (s2)
-# return sqrtf(x*x+y*y+z*z);
-length3:
-	VMUL.F32 q0,q0	
-	vadd.f32 s0, s1
-	vadd.f32 s0, s2
-	vsqrt.f32 s0, s0
-bx lr
 
 # args: x (s0), y (s1), z (s2)
 # return sqrtf(x*x+y*y+z*z);
@@ -160,7 +152,9 @@ udroundbox:
 	VMOV s2, s0
 	VMOV s1, s8
 	VMOV s0, s7
-	BL length3
+	BL dot3
+	vsqrt.f32 s0, s0
+
 
 	# return t-r
 	VMOV.F32 s6,#1.0
