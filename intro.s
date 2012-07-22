@@ -58,6 +58,9 @@ main_loop:
 	@ s12,s13,s14 = L
 	@ s8,s9,s10 = H
 
+	@ dir = s28,s29,s30
+	@ step = s31
+
 outerloop:
 
 	@ increment i
@@ -128,26 +131,21 @@ hit:
 	VPUSH.F32	{s0,s1,s2}
 
 	@ calculate diffuse term
-	VMOV.F32	q1,q4
-	@VMOV.F32	s4,s16		@ s3 = N.x
-	@VMOV.F32	s5,s17		@ s4 = N.y
-	@VMOV.F32	s6,s18		@ s5 = N.z
+	VMOV.F32	q1,q4		@ q1 = N
 
-	BL 	dot
+	BL 	dot	@ N dot L
 
 	@ color = colorDiffuse * diffuseTerm
 
-	VMOV.F32 s3, #0.25	@ diffuse.r
-	VMOV.F32 s4, #0.75	@ diffuse.g
-	VMOV.F32 s5, #1.0	@ diffuse.b
+	VMOV.F32 s4, #0.25	@ diffuse.r
+	VMOV.F32 s5, #0.75	@ diffuse.g
+	VMOV.F32 s6, #1.0	@ diffuse.b
 
 	@ multiply with diffuse term
-	VMUL.F32 s3,s0
-	VMUL.F32 s4,s0
-	VMUL.F32 s5,s0
+	VMUL.F32 q1,d0[0]
 
 	VPOP.F32	{s0,s1,s2}
-	VPUSH.F32	{s3,s4,s5}
+	VPUSH.F32	{s4,s5,s6}
 
 	@ H = L - ray
 	VSUB.F32	q0,q6
@@ -156,10 +154,7 @@ hit:
 	BL normalize
 
 	@ specular = dot(N,H)
-	VMOV.F32	s4,s16
-	VMOV.F32	s5,s17
-	VMOV.F32	s6,s18
-
+	VMOV.F32	q1,q4
 	BL	dot
 
 	@ specular = pow(specular, 50)
