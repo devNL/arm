@@ -28,9 +28,9 @@ main_thumb:
 	movt r3, $0x067F
 	str r3, [r1, $0x8]
 
-	mov r2, $0
-	movt r2, $0x6002 
-	str r2, [r1, $0x10]
+	mov r4, $0
+	movt r4, $0x6002 
+	str r4, [r1, $0x10]
 
 	movw r3, $0x082B
 	str r3, [r1, $0x18]
@@ -39,8 +39,8 @@ main_thumb:
 	ldr r1, =0x40000000	@ VFPEnable
 	fmxr fpexc, r1
 
-	mov r0, $0
-	mov r3, $0x12c000
+	@mov r0, $0
+	@mov r3, $0x12c000
 
 main_loop:
 	MOV r12, $0		@ i
@@ -175,8 +175,7 @@ specloop:
 
 	@ colorArray = color * 255
 	VMOV.F32 s0,#15.0
-	VMOV.F32 s1,#15.0
-	VMUL.F32 s0,s0,s1
+	VMUL.F32 s0,s0
 
 	VMUL.F32	q1,d0[0]	@ q1 * 255
 	VCVT.U32.F32	q1,q1
@@ -205,32 +204,29 @@ nohit:
 	@ ray = step * dir
 	VSUB.F32	q6,q6			@ ray.xyz = 0.0
 	VMOV.F32	s26,#-1.0		@ eye[2]
-	VMLA.F32	q6,q7,d11[0]		@ ray = step * dir	
+	VMLA.F32	q6,q7,d11[0]		@ ray = step * dir
 
 	@ loop again
 	B 		raymarch
 
-doneraymarch:	
-	
+doneraymarch:
+
 	@ plot pixel into buffer
-	
+
 	MOV     r2, #4
 	MOV	r3, #640
 	MUL	r3,r12
 	ADD	r3,r11
 	MUL	r3,r2
 
-	MOV     r2, $0
-        MOVT 	r2, $0x6002 
-
 	@ R
-	STR	r10, [r2, r3]
+	STR	r10, [r4, r3]
 	ADD	r3,$1
 	@ G
-	STR	r9, [r2, r3]
+	STR	r9, [r4, r3]
 	ADD	r3,$1
 	@ B
-	STR	r8, [r2, r3]
+	STR	r8, [r4, r3]
 
 	
 doneinnerloop:
