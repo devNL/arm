@@ -128,9 +128,10 @@ hit:
 	VPUSH.F32	{s0,s1,s2}
 
 	@ calculate diffuse term
-	VMOV.F32	s4,s16		@ s3 = N.x
-	VMOV.F32	s5,s17		@ s4 = N.y
-	VMOV.F32	s6,s18		@ s5 = N.z
+	VMOV.F32	q1,q4
+	@VMOV.F32	s4,s16		@ s3 = N.x
+	@VMOV.F32	s5,s17		@ s4 = N.y
+	@VMOV.F32	s6,s18		@ s5 = N.z
 
 	BL 	dot
 
