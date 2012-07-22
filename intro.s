@@ -46,15 +46,16 @@ main_loop:
 	MOV r12, $0		@ i
 	MOV r11, $0		@ j
 
-				@ s27 = ray.x, s26 = ray.y, s25 = ray.z
+				@ s27 = ray.x, s26 = ray.y, s25 = ray.z 
+				@ s24 = ray.x, s25 = ray.y, s26 = ray.z (q6 bottom 3)
 				@ s21 = specular
 	@ s20 = d
 	LDR r1, =viewport
-	VLDM.F32 r1, {s18, s19}
+	VLDM.F32 r1, {s19}
 
-	@ s17, s16, s15 = N
-	@ s14, s13, s12 = L
-	@ s11, s10, s9  = H
+	@ s17, s16, s15 = N 
+	@ s14, s13, s12 = L (q3 bottom 3)
+	@ s11, s10, s9  = H (q2 top 3)
 
 outerloop:
 
@@ -77,7 +78,7 @@ innerloop:
 	VMOV.F32	s0,r12			@ transfer i to fp register
 	VCVT.F32.S32	s0,s0			@ convert i to floating point
 	VMOV.F32	s30, #-1.0		@ s30 = -1.0
-	VMLA.F32	s30,s0,s18		@ s30 = i*dy - 1.0
+	VMLA.F32	s30,s0,s19		@ s30 = i*dy - 1.0
 
 	@ dir[2] = -eye[2];
 	VMOV.F32	s29, #1.0		@ s29 = 1.0
@@ -461,6 +462,4 @@ bx lr
 
 
 viewport:
-	.float 0.004167, 0.004156 @ dx dy
-
-
+	.float 0.004167
