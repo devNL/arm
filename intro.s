@@ -113,7 +113,60 @@ hit:
 	@ NormalAtPoint(ray[0], ray[1], ray[2], d, &N[0]);
 	VMOV.F32	q0,q6			@ s0..s2 = ray.xyz
 	VMOV.F32	s3,s20			@ s3 = d
-	BL		normal_at_point
+
+	@ ########### INLINE NORMAL_AT_POINT
+	@ # args: s0, s1, s2, s3
+	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14}
+
+	@ preserve s3
+	VPUSH.F32	{s3}	@ D
+
+	@ Nx1 = q1
+	VMOV.F32	q1,q0
+
+	@ Ny1 = q2
+	VMOV.F32	q2,q0
+
+	@ Nz1 = q3
+	VMOV.F32	q3,q0
+
+	@ load epsilon
+	VMOV.F32	s0,#0.125
+
+	@ += epsilon
+	VADD.F32	s4,s0
+	VADD.F32	s9,s0
+	VADD.F32	s14,s0
+
+	@ central diff calc
+	VMOV.F32	q0,q1
+	BL	dist
+
+	@ preserve result NX1
+	VPUSH.F32	{s0}	@ NX1
+
+	VMOV.F32	q0,q2
+	BL	dist
+
+	@ preserve result NY1
+	VPUSH.F32	{s0}	@ NY1
+
+	VMOV.F32	q0,q3
+	BL	dist
+
+	VMOV.F32	s2,s0	@ NZ1
+	VPOP.F32	{s1, s0}
+	VPOP.F32 	{s3}	@ NY1, NX1, D
+
+	@ subtract d
+	VDUP.F32	q1,d1[1]
+	VSUB.F32	q0,q1	@ N - D
+
+	@ normalize
+	BL	normalize
+
+	VPOP.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14}
+	@ ########### INLINE NORMAL_AT_POINT
 
 	VMOV.F32	q4,q0
 
@@ -367,67 +420,6 @@ dot:
 	vadd.f32 s0, s1
 	vadd.f32 s0, s2
 bx lr
-
-# args: s0, s1, s2, s3
-normal_at_point:
-	push {lr}
-
-	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14}
-
-	@ preserve s3
-	VPUSH.F32	{s3}	@ D
-
-	@ Nx1 = q1
-	VMOV.F32	q1,q0
-
-	@ Ny1 = q2
-	VMOV.F32	q2,q0
-
-	@ Nz1 = q3
-	VMOV.F32	q3,q0
-
-	@ load epsilon
-	VMOV.F32	s0,#0.125
-
-	@ += epsilon
-	VADD.F32	s4,s0
-	VADD.F32	s9,s0
-	VADD.F32	s14,s0
-
-	@ central diff calc
-	VMOV.F32	q0,q1
-	BL	dist
-
-	@ preserve result NX1
-	VPUSH.F32	{s0}	@ NX1
-
-	VMOV.F32	q0,q2
-	BL	dist
-
-	@ preserve result NY1
-	VPUSH.F32	{s0}	@ NY1
-
-	VMOV.F32	q0,q3
-	BL	dist
-
-	VMOV.F32	s2,s0	@ NZ1
-	VPOP.F32	{s1, s0}
-	VPOP.F32 	{s3}	@ NY1, NX1, D
-
-	@ subtract d
-	VDUP.F32	q1,d1[1]
-	VSUB.F32	q0,q1	@ N - D
-
-	@ normalize
-	BL	normalize
-
-done_normal:
-	VPOP.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14}
-	pop {lr}
-bx lr
-
-
-
 
 viewport:
 	.float 0.004167
