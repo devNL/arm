@@ -6,12 +6,12 @@
 
 # previously known as intro_do, main loop
 main:
-	mov sp, $0x8000
-	movt sp, $0x6001
-	blx main_thumb
+blx main_thumb
 
-main_thumb:
 .thumb
+main_thumb:
+	add sp, $0x8000
+
 	# init GFX
 	mov r1, $0
 	movt r1, $0x1002
@@ -28,7 +28,7 @@ main_thumb:
 	movt r3, $0x067F
 	str r3, [r1, $0x8]
 
-	mov r4, $0
+	@ mov r4, $0
 	movt r4, $0x6002 
 	str r4, [r1, $0x10]
 
@@ -39,12 +39,10 @@ main_thumb:
 	ldr r1, =0x40000000	@ VFPEnable
 	fmxr fpexc, r1
 
-	@mov r0, $0
-	@mov r3, $0x12c000
-
 main_loop:
-	MOV r12, $0		@ i
-	MOV r11, $0		@ j
+	@ qemu initializes all registers to zero it seems, we can get away without these
+	@ MOV r12, $0		@ i
+	@ MOV r11, $0		@ j
 
 	@ s24 = ray.x, s25 = ray.y, s26 = ray.z (q6 bottom 3)
 	@ s21 = specular
@@ -213,11 +211,10 @@ doneraymarch:
 
 	@ plot pixel into buffer
 
-	MOV     r2, #4
 	MOV	r3, #640
 	MUL	r3,r12
 	ADD	r3,r11
-	MUL	r3,r2
+	MOV	r3, r3, lsl#2
 
 	@ R
 	STR	r10, [r4, r3]
@@ -282,50 +279,6 @@ normalize:
 bx lr
 
 
-# args: s0=px, s1=py, s2=pz, 
-# bx, by, bz, r
-udroundbox:
-	PUSH {lr}
-
-	VABS.F32 q0,q0
-
-	VMOV.F32 s4,#0.5	@ bx
-	VMOV.F32 s5,#3.0	@ by
-	VMOV.F32 s6,#0.5	@ bz
-	VSUB.F32 s7,s7		@ s7 = 0
-
-	VSUB.F32 q0,q1		@ q0 - q1
-	VDUP.F32 q1,d3[1]	@ q1 = 0
-
-	VMAX.F32 q0,q1		@ q0 = max(q0,q1)
-	BL dot3
-	VSQRT.F32 s0, s0
-
-	# return t-r
-	VMOV.F32 s6,#1.0
-	VSUB.F32 s0, s6
-
-	POP {lr}
-bx lr
-
-# args: px, py, pz, tx, ty
-sdtorus:
-	PUSH {lr}
-
-	BL length2
-
-	@ tmp -= tx
-	@ arg0 = bla-tx
-	VSUB.F32 s0,s0, s3
-
-	@ arg1 = pz
-	VMOV s1, s2
-
-	BL length2
-	VSUB.F32 s0, s4
-
-	POP {lr}
-BX lr
 
 # args: px, py, pz
 dist:
@@ -346,7 +299,21 @@ dist:
 	VMOV.F32 s3, #3.0
 	VMOV.F32 s4, #1.0
 
-	BL sdtorus
+	@ BL sdtorus
+	@ ####### inline SDtorus #############
+	@ # args: px, py, pz, tx, ty
+	BL length2
+
+	@ tmp -= tx
+	@ arg0 = bla-tx
+	VSUB.F32 s0,s0, s3
+
+	@ arg1 = pz
+	VMOV s1, s2
+
+	BL length2
+	VSUB.F32 s0, s4
+	@ ####### end of inline SDtorus #######
 
 	# preserve result
 	VMOV s14, s0
@@ -361,7 +328,28 @@ dist:
 	# p -= box
 	VSUB.F32 q0,q1
 
-	BL udroundbox
+	@ BL udroundbox
+	@ ####### inline udroundbox ############
+	@ # args: s0=px, s1=py, s2=pz, 
+	@ # bx, by, bz, r
+	VABS.F32 q0,q0
+
+	VMOV.F32 s4,#0.5	@ bx
+	VMOV.F32 s5,#3.0	@ by
+	VMOV.F32 s6,#0.5	@ bz
+	VSUB.F32 s7,s7		@ s7 = 0
+
+	VSUB.F32 q0,q1		@ q0 - q1
+	VDUP.F32 q1,d3[1]	@ q1 = 0
+
+	VMAX.F32 q0,q1		@ q0 = max(q0,q1)
+	BL dot3
+	VSQRT.F32 s0, s0
+
+	# return t-r
+	VMOV.F32 s6,#1.0
+	VSUB.F32 s0, s6
+	@ ####### inline udroundbox end ############
 
 	# return min(res1, res2)
 	VMIN.F32 d0,d7
@@ -423,11 +411,10 @@ normal_at_point:
 	BL	dist
 
 	VMOV.F32	s2,s0	@ NZ1
-	VPOP.F32	{s1}	@ NY1
-	VPOP.F32	{s0}	@ NX1
+	VPOP.F32	{s1, s0}
+	VPOP.F32 	{s3}	@ NY1, NX1, D
 
 	@ subtract d
-	VPOP.F32	{s3}	@ D
 	VDUP.F32	q1,d1[1]
 	VSUB.F32	q0,q1	@ N - D
 
