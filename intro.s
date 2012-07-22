@@ -345,42 +345,24 @@ normalize:
 bx lr
 
 
-# args: s0=px, s1=py, s2=pz, s3=bx, s4=by, s5=bz, s6=r
+# args: s0=px, s1=py, s2=pz, 
+# bx, by, bz, r
 udroundbox:
 	PUSH {lr}
-	# preserve some args
-	VMOV s8, s1
-	VMOV s9, s2
 
-	# arg1 to max is always 0
-	VSUB.F32 s1, s1
+	VABS.F32 q0,q0
 
-	# px = max(abs(px)-bx, 0.0)
-	VMOV.F32 s3, #0.5
-	VABS.F32 s0, s0
-	VSUB.F32 s0, s3
-	BL max
-	VMOV s7, s0
+	VMOV.F32 s4,#0.5	@ bx
+	VMOV.F32 s5,#3.0	@ by
+	VMOV.F32 s6,#0.5	@ bz
+	VSUB.F32 s7,s7		@ s7 = 0
 
-	# py = max(abs(py)-by, 0.0)
-	VMOV.F32 s4, #3.0
-	VABS.F32 s0, s8
-	VSUB.F32 s0, s4
-	BL max
-	VMOV s8, s0
+	VSUB.F32 q0,q1		@ q0 - q1
+	VDUP.F32 q1,d3[1]	@ q1 = 0
 
-	# pz = max(abs(pz)-bz, 0.0)
-	VABS.F32 s0, s9
-	VSUB.F32 s0, s3
-	BL max
-
-	# t = length3(px, py, pz)
-	VMOV s2, s0
-	VMOV s1, s8
-	VMOV s0, s7
+	VMAX.F32 q0,q1		@ q0 = max(q0,q1)
 	BL dot3
-	vsqrt.f32 s0, s0
-
+	VSQRT.F32 s0, s0
 
 	# return t-r
 	VMOV.F32 s6,#1.0
