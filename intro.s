@@ -287,29 +287,21 @@ clamp:
 
 # args: x (s0), a (s1)
 # return (x<a)?x:a;
-min:
-	# if (x < a) return x;
-	vcmp.f32 s0, s1
-	VMRS    	APSR_nzcv, FPSCR        @ Get the flags into APSR.
-	blt end_min
 
-	# else return a;
-	vmov s0, s1
-end_min:
-	bx lr
+min:
+	VMOV.F32 s2,s1
+	VMIN.F32 d0,d1
+BX lr
 
 # args: x (s0), a (s1)
 # return (x>a)?x:a;
 max:
-	# if (x > a) return x;
-	vcmp.f32 s0, s1
-	VMRS    	APSR_nzcv, FPSCR        @ Get the flags into APSR.
-	bgt end_max
+	VPUSH.F32	{s2}
+	VMOV.F32 s2,s1
+	VMAX.F32 d0,d1
+	VPOP.F32	{s2}
+BX lr
 
-	# else return a;
-	vmov s0, s1
-end_max:
-	bx lr
 
 # args: x (s0), y (s1)
 # return sqrtf(x*x+y*y);
@@ -454,19 +446,13 @@ normal_at_point:
 	VPUSH.F32	{s3}	@ D
 
 	@ Nx1 = q1
-	VMOV.F32	s4,s0
-	VMOV.F32	s5,s1
-	VMOV.F32	s6,s2
+	VMOV.F32	q1,q0
 
 	@ Ny1 = q2
-	VMOV.F32	s8,s0
-	VMOV.F32	s9,s1
-	VMOV.F32	s10,s2
+	VMOV.F32	q2,q0
 
 	@ Nz1 = q3
-	VMOV.F32	s12,s0
-	VMOV.F32	s13,s1
-	VMOV.F32	s14,s2
+	VMOV.F32	q3,q0
 
 	@ load epsilon
 	VMOV.F32	s0,#0.125
