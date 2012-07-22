@@ -392,7 +392,7 @@ BX lr
 
 # args: px, py, pz
 dist:
-	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
+	VPUSH.F32	{s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13}
 	PUSH {lr}
 
 	# preserve args
@@ -430,8 +430,9 @@ dist:
 	VMOV.F32 s1, s0
 	VMOV.F32 s0, s13
 	BL min
-	pop {lr}
-	VPOP.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
+
+	POP {lr}
+	VPOP.F32	{s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13}
 bx lr
 
 # args: x1,x2,y1,y2,z1,z2
@@ -447,76 +448,68 @@ bx lr
 normal_at_point:
 	push {lr}
 
-	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
+	VPUSH.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14}
 
 	@ preserve s3
 	VPUSH.F32	{s3}	@ D
 
-	@ Nx1
+	@ Nx1 = q1
 	VMOV.F32	s4,s0
 	VMOV.F32	s5,s1
 	VMOV.F32	s6,s2
 
-	@ Ny1
-	VMOV.F32	s7,s0
-	VMOV.F32	s8,s1
-	VMOV.F32	s9,s2
+	@ Ny1 = q2
+	VMOV.F32	s8,s0
+	VMOV.F32	s9,s1
+	VMOV.F32	s10,s2
 
-	@ Nz1
-	VMOV.F32	s10,s0
-	VMOV.F32	s11,s1
-	VMOV.F32	s12,s2
+	@ Nz1 = q3
+	VMOV.F32	s12,s0
+	VMOV.F32	s13,s1
+	VMOV.F32	s14,s2
 
 	@ load epsilon
 	VMOV.F32	s0,#0.125
 
 	@ += epsilon
 	VADD.F32	s4,s0
-	VADD.F32	s8,s0
-	VADD.F32	s12,s0
+	VADD.F32	s9,s0
+	VADD.F32	s14,s0
 
 	@ central diff calc
-	VMOV.F32	s0,s4
-	VMOV.F32	s1,s5
-	VMOV.F32	s2,s6
-
+	VMOV.F32	q0,q1
 	BL	dist
+
 	@ preserve result NX1
 	VPUSH.F32	{s0}	@ NX1
 
-	VMOV.F32	s0,s7
-	VMOV.F32	s1,s8
-	VMOV.F32	s2,s9
-
+	VMOV.F32	q0,q2
 	BL	dist
 
 	@ preserve result NY1
 	VPUSH.F32	{s0}	@ NY1
 
-	VMOV.F32	s0,s10
-	VMOV.F32	s1,s11
-	VMOV.F32	s2,s12
-
+	VMOV.F32	q0,q3
 	BL	dist
 
 	VMOV.F32	s2,s0	@ NZ1
-
 	VPOP.F32	{s1}	@ NY1
 	VPOP.F32	{s0}	@ NX1
 
 	@ subtract d
 	VPOP.F32	{s3}	@ D
-	VSUB.F32	s0,s3	@ NX1 - D
-	VSUB.F32	s1,s3	@ NY1 - D
-	VSUB.F32	s2,s3	@ NZ1 - D
+	VDUP.F32	q1,d1[1]
+	VSUB.F32	q0,q1	@ N - D
 
 	@ normalize
 	BL	normalize
 
 done_normal:
-	VPOP.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12}
+	VPOP.F32	{s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14}
 	pop {lr}
 bx lr
+
+
 
 
 viewport:
