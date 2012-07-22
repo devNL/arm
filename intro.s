@@ -265,21 +265,6 @@ doneouterloop:
 		b lock
 
 
-# args: x (s0), a (s1)
-# return (x<a)?x:a;
-
-min:
-	VMOV.F32 s2,s1
-	VMIN.F32 d0,d1
-BX lr
-
-# args: x (s0), a (s1)
-# return (x>a)?x:a;
-max:
-	VMOV.F32 s2,s1
-	VMAX.F32 d0,d1
-BX lr
-
 
 # args: x (s0), y (s1)
 # return sqrtf(x*x+y*y);
@@ -362,7 +347,7 @@ BX lr
 
 # args: px, py, pz
 dist:
-	VPUSH.F32	{s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13}
+	VPUSH.F32	{s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14}
 	PUSH {lr}
 
 	# preserve args
@@ -382,7 +367,7 @@ dist:
 	BL sdtorus
 
 	# preserve result
-	VMOV s13, s0
+	VMOV s14, s0
 
 	# res2 = udroundbox(px-box[0], py-box[1], pz-box[2], 0.75, 3.0, 0.5, 1.0)
 	VPOP {s0,s1,s2}
@@ -397,12 +382,11 @@ dist:
 	BL udroundbox
 
 	# return min(res1, res2)
-	VMOV.F32 s1, s0
-	VMOV.F32 s0, s13
-	BL min
+	VMIN.F32 d0,d7
+
 
 	POP {lr}
-	VPOP.F32	{s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13}
+	VPOP.F32	{s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14}
 bx lr
 
 # args: x1,x2,y1,y2,z1,z2
