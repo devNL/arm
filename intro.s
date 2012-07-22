@@ -84,18 +84,15 @@ innerloop:
 	VMOV.F32	s29, #1.0		@ s29 = 1.0
 
 	@ ray.xyz = eye.xyz
-	VSUB.F32	s27, s27		@ ray[0] = 0.0
-	VSUB.F32	s26, s26		@ ray[1] = 0.0
-	VMOV.F32	s25, #-1.0		@ ray[2] = -1.0
+	VSUB.F32	q6,q6			@ ray.xyz = 0.0
+	VMOV.F32	s26, #-1.0		@ ray[2] = -1.0
 
 	@ step = 0.0
 	VSUB.F32	s28,s28			@ step = 0.0
 	
 raymarch:
 	@ d = (dist(ray[0], ray[1], ray[2]));
-	VMOV.F32	s0,s27			@ s0 = ray[0]
-	VMOV.F32	s1,s26			@ s1 = ray[1]
-	VMOV.F32	s2,s25			@ s2 = ray[2]
+	VMOV.F32	q0,q6
 
 	BL dist					@ call dist()
 	VMOV.F32	s20,s0			@ d = result
@@ -109,9 +106,7 @@ raymarch:
 hit:
 
 	@ NormalAtPoint(ray[0], ray[1], ray[2], d, &N[0]);
-        VMOV.F32        s0,s27                  @ s0 = ray[0]
-        VMOV.F32        s1,s26                  @ s1 = ray[1]
-        VMOV.F32        s2,s25                  @ s2 = ray[2]
+	VMOV.F32	q0,q6			@ s0..s2 = ray.xyz
 	VMOV.F32	s3,s20			@ s3 = d
 	BL		normal_at_point
 
@@ -123,9 +118,9 @@ hit:
 	VMOV.F32	s14,#-1.0		@ L.x = -1.0
 	VMOV.F32	s2,#-10.0		@ L.z = -10.0
 
-	VMUL.F32	s0,s27,s14		@ L.x = -1.0 * ray[0]
-	VMUL.F32	s1,s26,s14		@ L.y = ray[1] * -1.0
-	VMLA.F32	s2,s25,s14		@ L.z = -10.0 + (ray[2] * -1.0)
+	VMUL.F32	s0,s24,s14		@ L.x = -1.0 * ray[0]
+	VMUL.F32	s1,s25,s14		@ L.y = ray[1] * -1.0
+	VMLA.F32	s2,s26,s14		@ L.z = -10.0 + (ray[2] * -1.0)
 
 	@ Normalize L
 	BL normalize
@@ -154,9 +149,7 @@ hit:
 	VPUSH.F32	{s3,s4,s5}
 
 	@ H = L - ray
-	VSUB.F32	s0,s27
-	VSUB.F32	s1,s26
-	VSUB.F32	s2,s25
+	VSUB.F32	q0,q6
 
 	@ Normalize H
 	BL normalize
@@ -216,10 +209,10 @@ nohit:
 	BGT		doneraymarch		@ step > 16?
 
 	@ ray = step * dir
-	VMUL.F32	s27,s31,s28		@ ray[0] = step * dir[0]
-	VMUL.F32	s26,s30,s28		@ ray[1] = step * dir[1]
-	VMOV.F32	s25,#-1.0
-	VMLA.F32	s25,s29,s28		@ ray[2] = step * dir[2]
+	VMUL.F32	s24,s31,s28		@ ray[0] = step * dir[0]
+	VMUL.F32	s25,s30,s28		@ ray[1] = step * dir[1]
+	VMOV.F32	s26,#-1.0		@ eye[2]
+	VMLA.F32	s26,s29,s28		@ ray[2] = step * dir[2]
 	
 
 	@ loop again
