@@ -59,7 +59,7 @@ main_loop:
 	@ s8,s9,s10 = H
 
 	@ dir = s28,s29,s30
-	@ step = s31
+	@ step = s22
 
 outerloop:
 
@@ -73,36 +73,36 @@ innerloop:
 	LDR r1, =viewport
 	VLDM.F32 r1, {s19}	@ d/xy
 
-
 	@ dir[0] = (j*dx) - 1.0;
 	VMOV.F32	s0,r11			@ transfer j to fp register
 
 	VCVT.F32.S32	s0,s0			@ convert j to floating point
-	VMOV.F32	s31,#-1.0		@ s31 = -1.0
-	VMLA.F32	s31,s0,s19		@ s31 = j*dx - 1.0
+	VMOV.F32	s28,#-1.0		@ s28 = -1.0
+	VMLA.F32	s28,s0,s19		@ s28 = j*dx - 1.0
 
         @ dir[1] = (i*dy) - 1.0
 	VMOV.F32	s0,r12			@ transfer i to fp register
 	VCVT.F32.S32	s0,s0			@ convert i to floating point
-	VMOV.F32	s30, #-1.0		@ s30 = -1.0
-	VMLA.F32	s30,s0,s19		@ s30 = i*dy - 1.0
+	VMOV.F32	s29, #-1.0		@ s29 = -1.0
+	VMLA.F32	s29,s0,s19		@ s29 = i*dy - 1.0
 
 	@ dir[2] = -eye[2];
-	VMOV.F32	s29, #1.0		@ s29 = 1.0
+	VMOV.F32	s30, #1.0		@ s30 = 1.0
 
 	@ ray.xyz = eye.xyz
 	VSUB.F32	q6,q6			@ ray.xyz = 0.0
 	VMOV.F32	s26, #-1.0		@ ray[2] = -1.0
 
 	@ step = 0.0
-	VSUB.F32	s28,s28			@ step = 0.0
+	VSUB.F32	s22,s22			@ step = 0.0
 
 raymarch:
 	@ d = (dist(ray[0], ray[1], ray[2]));
 	VMOV.F32	q0,q6
 
-	BL dist					@ call dist()
-	VMOV.F32	s20,s0			@ d = result
+	BL dist					@ call dist()	s0 = d
+	
+	VMOV.F32	s20,s0
 
 	@ ray hit
 	VMOV.F32	s0,#0.125		@ raymarch threshold
@@ -118,11 +118,9 @@ hit:
 	BL		normal_at_point
 
 	VMOV.F32	q4,q0
-	
-	@ L[0] = -ray[0]; L[1] = -ray[1]; L[2] = -ray[2] - 10.0
-	VMOV.F32	s15,#-1.0		@ L.x = -1.0
-	VMOV.F32	s2,#-10.0		@ L.z = -10.0
 
+	@ L[0] = -ray[0]; L[1] = -ray[1]; L[2] = -ray[2] - 10.0
+	VMOV.F32	s2,#-10.0		@ L.z = -10.0
 	VMLA.F32	q0,q6,d7[0]		@ L.xyz += -1 * ray.xyz
 
 	@ Normalize L
@@ -191,7 +189,7 @@ specloop:
 
 nohit:
 	@ step += d
-	VADD.F32	s28,s20			@ step += d
+	VADD.F32	s22,s20			@ step += d
 
 
 	@ colorArray.rgb = 0
@@ -200,16 +198,14 @@ nohit:
         ADD  r8, r9, r12              		@ colorArray.b
 
 	VMOV		s27,#16.0
-	VCMP.F32	s28,s27
+	VCMP.F32	s22,s27
 	VMRS    	APSR_nzcv, FPSCR        @ Get the flags into APSR.
 	BGT		doneraymarch		@ step > 16?
 
 	@ ray = step * dir
-	VMUL.F32	s24,s31,s28		@ ray[0] = step * dir[0]
-	VMUL.F32	s25,s30,s28		@ ray[1] = step * dir[1]
+	VSUB.F32	q6,q6			@ ray.xyz = 0.0
 	VMOV.F32	s26,#-1.0		@ eye[2]
-	VMLA.F32	s26,s29,s28		@ ray[2] = step * dir[2]
-	
+	VMLA.F32	q6,q7,d11[0]		@ ray = step * dir	
 
 	@ loop again
 	B 		raymarch
