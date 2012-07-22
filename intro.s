@@ -57,6 +57,10 @@ main_loop:
 	@ s14, s13, s12 = L (q3 bottom 3)
 	@ s11, s10, s9  = H (q2 top 3)
 
+	@ s8,s9,s10 = H
+	@ s12,s13,s14 = L
+	@ s16,s17,s18 = N
+
 outerloop:
 
 	@ increment i
@@ -118,10 +122,7 @@ hit:
 	VMOV.F32	s14,#-1.0		@ L.x = -1.0
 	VMOV.F32	s2,#-10.0		@ L.z = -10.0
 
-	VMLA.F32	q0,q6,d7[0]
-	@VMUL.F32	s0,s24,s14		@ L.x = -1.0 * ray[0]
-	@VMUL.F32	s1,s25,s14		@ L.y = ray[1] * -1.0
-	@VMLA.F32	s2,s26,s14		@ L.z = -10.0 + (ray[2] * -1.0)
+	VMLA.F32	q0,q6,d7[0]		@ L.xyz += -1 * ray.xyz
 
 	@ Normalize L
 	BL normalize
