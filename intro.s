@@ -138,11 +138,6 @@ hit:
 
 	BL 	dot
 
-	VSUB.F32	s1,s1		@ s1 = 0.0
-	VMOV.F32	s2,#1.0		@ s2 = 1.0
-
-	BL 	clamp
-
 	@ color = colorDiffuse * diffuseTerm
 
 	VMOV.F32 s3, #0.25	@ diffuse.r
@@ -171,11 +166,6 @@ hit:
 	VMOV.F32	s6,s15
 
 	BL	dot
-
-	VSUB.F32	s1,s1		@ s1 = 0.0
-	VMOV.F32	s2,#1.0		@ s2 = 1.0
-
-	BL 	clamp
 
 	@ specular = pow(specular, 50)
 	MOV		r0,#6
@@ -275,16 +265,6 @@ doneouterloop:
 		b lock
 
 
-# args x (s0), a (s1) , b (s2)
-# return (x<a)?a:(x>b)?b:x;
-clamp:
-	push {lr}
-	bl max
-	vmov s1, s2
-	bl min
-	pop {lr}
-	bx lr
-
 # args: x (s0), a (s1)
 # return (x<a)?x:a;
 
@@ -296,10 +276,8 @@ BX lr
 # args: x (s0), a (s1)
 # return (x>a)?x:a;
 max:
-	VPUSH.F32	{s2}
 	VMOV.F32 s2,s1
 	VMAX.F32 d0,d1
-	VPOP.F32	{s2}
 BX lr
 
 
