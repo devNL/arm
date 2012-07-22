@@ -46,20 +46,17 @@ main_loop:
 	MOV r12, $0		@ i
 	MOV r11, $0		@ j
 
-				@ s27 = ray.x, s26 = ray.y, s25 = ray.z 
-				@ s24 = ray.x, s25 = ray.y, s26 = ray.z (q6 bottom 3)
-				@ s21 = specular
+	@ s24 = ray.x, s25 = ray.y, s26 = ray.z (q6 bottom 3)
+	@ s21 = specular
 	@ s20 = d
-	LDR r1, =viewport
-	VLDM.F32 r1, {s19}
 
 	@ s17, s16, s15 = N 
 	@ s14, s13, s12 = L (q3 bottom 3)
 	@ s11, s10, s9  = H (q2 top 3)
 
-	@ s8,s9,s10 = H
-	@ s12,s13,s14 = L
 	@ s16,s17,s18 = N
+	@ s12,s13,s14 = L
+	@ s8,s9,s10 = H
 
 outerloop:
 
@@ -70,6 +67,10 @@ outerloop:
 	MOV	r11,$0
 
 innerloop:
+	LDR r1, =viewport
+	VLDM.F32 r1, {s19}	@ d/xy
+
+
 	@ dir[0] = (j*dx) - 1.0;
 	VMOV.F32	s0,r11			@ transfer j to fp register
 
@@ -77,7 +78,6 @@ innerloop:
 	VMOV.F32	s31,#-1.0		@ s31 = -1.0
 	VMLA.F32	s31,s0,s19		@ s31 = j*dx - 1.0
 
-	
         @ dir[1] = (i*dy) - 1.0
 	VMOV.F32	s0,r12			@ transfer i to fp register
 	VCVT.F32.S32	s0,s0			@ convert i to floating point
@@ -93,7 +93,7 @@ innerloop:
 
 	@ step = 0.0
 	VSUB.F32	s28,s28			@ step = 0.0
-	
+
 raymarch:
 	@ d = (dist(ray[0], ray[1], ray[2]));
 	VMOV.F32	q0,q6
@@ -114,12 +114,10 @@ hit:
 	VMOV.F32	s3,s20			@ s3 = d
 	BL		normal_at_point
 
-	VMOV.F32	s17,s0
-	VMOV.F32	s16,s1
-	VMOV.F32	s15,s2
+	VMOV.F32	q4,q0
 	
 	@ L[0] = -ray[0]; L[1] = -ray[1]; L[2] = -ray[2] - 10.0
-	VMOV.F32	s14,#-1.0		@ L.x = -1.0
+	VMOV.F32	s15,#-1.0		@ L.x = -1.0
 	VMOV.F32	s2,#-10.0		@ L.z = -10.0
 
 	VMLA.F32	q0,q6,d7[0]		@ L.xyz += -1 * ray.xyz
@@ -130,9 +128,9 @@ hit:
 	VPUSH.F32	{s0,s1,s2}
 
 	@ calculate diffuse term
-	VMOV.F32	s4,s17		@ s3 = N.x
-	VMOV.F32	s5,s16		@ s4 = N.y
-	VMOV.F32	s6,s15		@ s5 = N.z
+	VMOV.F32	s4,s16		@ s3 = N.x
+	VMOV.F32	s5,s17		@ s4 = N.y
+	VMOV.F32	s6,s18		@ s5 = N.z
 
 	BL 	dot
 
@@ -157,9 +155,9 @@ hit:
 	BL normalize
 
 	@ specular = dot(N,H)
-	VMOV.F32	s4,s17
-	VMOV.F32	s5,s16
-	VMOV.F32	s6,s15
+	VMOV.F32	s4,s16
+	VMOV.F32	s5,s17
+	VMOV.F32	s6,s18
 
 	BL	dot
 
