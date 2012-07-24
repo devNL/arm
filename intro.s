@@ -196,33 +196,7 @@ hit:
 	VPOP.F32	{s0,s1,s2}
 	VPUSH.F32	{s4,s5,s6}
 
-	@ H = L - ray
-	VSUB.F32	q0,q6
-
-	@ Normalize H
-	BL normalize
-
-	@ specular = dot(N,H)
-	VMOV.F32	q1,q4
-	BL	dot
-
-	@ specular = pow(specular, 50)
-	MOV		r0,#6
-specloop:
-	VMUL.F32	s0,s0
-	SUB		r0,#1
-	CMP		r0,#0
-	BGT		specloop
-
-	@ pop color
 	VPOP.F32	{s4,s5,s6}	@ q1
-
-	@ color += specular*(1.0 - color)
-	VMOV.F32	q2,#1.0		@ q2
-
-	VSUB.F32	q2,q1		@ q2 - q1 // 1.0 - color
-
-	VMLA.F32	q1,q2,d0[0]	@ q1 += q2 * s0 // color += specular * x
 
 	@ colorArray = color * 255
 	VMOV.F32 s0,#15.0
