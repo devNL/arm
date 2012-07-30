@@ -6,34 +6,32 @@
 
 # previously known as intro_do, main loop
 main:
-blx main_thumb
+mov r1, $0
+str r2, [r1]
 
+blx stack
+.word 0x10020000        @ clcd pl111 base
+.word (640 / 4) - 4     @ xres
+.word 480 - 1           @ yres
+.word 0x60020000
+.word 0x0000082b
+.ltorg
 .thumb
+stack:
+mov sp, lr
+pop {r0-r2,r5,r7}
+stmia r0, {r1-r7}
+
+mov r1, $0
+movt r1, $0x6001
+mov sp, lr
+
 main_thumb:
-	add sp, $0x8000
-
-	# init GFX
-	mov r1, $0
-	movt r1, $0x1002
-
-	movw r3, $0x3F9C
-	movt r3, $0x3F1F
-	str r3, [r1, $0x0]
-
-	movw r3, $0x61DF
-	movt r3, $0x090B
-	str r3, [r1, $0x4]
-
-	mov r3, $0x1800
-	movt r3, $0x067F
-	str r3, [r1, $0x8]
-
-	@ mov r4, $0
 	movt r4, $0x6002 
-	str r4, [r1, $0x10]
+	# str r4, [r1, $0x10]
 
-	movw r3, $0x082B
-	str r3, [r1, $0x18]
+	# movw r3, $0x082B
+	# str r3, [r1, $0x18]
 
 	# init FPU
 	ldr r1, =0x40000000	@ VFPEnable
@@ -237,22 +235,15 @@ nohit:
 doneraymarch:
 
 	@ plot pixel into buffer
-
 	MOV	r3, #640
 	MUL	r3,r12
 	ADD	r3,r11
 	MOV	r3, r3, lsl#2
+	ADD	r3, r4
+	strb	r10, [r3],1
+	strb	r9, [r3],1
+	strb	r8, [r3]
 
-	@ R
-	STR	r10, [r4, r3]
-	ADD	r3,$1
-	@ G
-	STR	r9, [r4, r3]
-	ADD	r3,$1
-	@ B
-	STR	r8, [r4, r3]
-
-	
 doneinnerloop:
 	CMP	r11,#640
 	BGT	doneouterloop	@ if j > 640, run the outer loop again (i++)
@@ -269,8 +260,6 @@ doneouterloop:
 	# HALT, hammerzeit!
 	lock:	
 		b lock
-
-
 
 # args: x (s0), y (s1)
 # return sqrtf(x*x+y*y);
@@ -306,7 +295,6 @@ normalize:
 bx lr
 
 
-
 # args: px, py, pz
 dist:
 	VPUSH.F32	{s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14}
@@ -326,7 +314,6 @@ dist:
 	VMOV.F32 s3, #3.0
 	VMOV.F32 s4, #1.0
 
-	@ BL sdtorus
 	@ ####### inline SDtorus #############
 	@ # args: px, py, pz, tx, ty
 	BL length2
@@ -380,7 +367,6 @@ dist:
 
 	# return min(res1, res2)
 	VMIN.F32 d0,d7
-
 
 	POP {lr}
 	VPOP.F32	{s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14}
